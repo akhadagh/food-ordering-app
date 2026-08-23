@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api' || 'https://foodgh-backend.onrender.com/api';
 
 const api = axios.create({ baseURL: API_BASE, timeout: 10000 });
 
@@ -33,8 +33,8 @@ export const menuAPI = {
   getCategories: () => api.get('/menu/categories'),
   getItems: (params) => api.get('/menu/items', { params }),
   getItem: (id) => api.get(`/menu/items/${id}`),
-  createItem: (data) => api.post('/menu/items', data),
-  updateItem: (id, data) => api.put(`/menu/items/${id}`, data),
+  createItem: (data, config) => api.post('/menu/items', data, config),
+  updateItem: (id, data, config) => api.put(`/menu/items/${id}`, data, config),
   deleteItem: (id) => api.delete(`/menu/items/${id}`),
   createCategory: (data) => api.post('/menu/categories', data),
   updateCategory: (id, data) => api.put(`/menu/categories/${id}`, data),

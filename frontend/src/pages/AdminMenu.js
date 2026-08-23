@@ -11,6 +11,7 @@ const AdminMenu = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [catForm, setCatForm] = useState({ name: '', description: '' });
   const [form, setForm] = useState({ name: '', description: '', price: '', category_id: '', is_available: true, is_featured: false });
+  const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadData(); }, []);
@@ -24,13 +25,33 @@ const AdminMenu = () => {
 
   const openAdd = () => { setEditItem(null); setForm({ name: '', description: '', price: '', category_id: categories[0]?.id || '', is_available: true, is_featured: false }); setShowModal(true); };
   const openEdit = (item) => { setEditItem(item); setForm({ name: item.name, description: item.description || '', price: item.price, category_id: item.category_id, is_available: item.is_available, is_featured: item.is_featured }); setShowModal(true); };
+  
+  // reset image file when opening modal
+  const openAddWithReset = () => { setImageFile(null); openAdd(); };
+  const openEditWithReset = (item) => { setImageFile(null); openEdit(item); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const data = { ...form, price: parseFloat(form.price), category_id: parseInt(form.category_id) };
-      if (editItem) { await menuAPI.updateItem(editItem.id, data); toast.success('Item updated!'); }
-      else { await menuAPI.createItem(data); toast.success('Item created!'); }
+      // Use FormData if an image is provided
+      let response;
+      if (imageFile) {
+        const fd = new FormData();
+        fd.append('name', form.name);
+        fd.append('description', form.description);
+        fd.append('price', parseFloat(form.price));
+        fd.append('category_id', parseInt(form.category_id));
+        fd.append('is_available', form.is_available);
+        fd.append('is_featured', form.is_featured);
+        fd.append('image', imageFile);
+        if (editItem) response = await menuAPI.updateItem(editItem.id, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        else response = await menuAPI.createItem(fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      } else {
+        const data = { ...form, price: parseFloat(form.price), category_id: parseInt(form.category_id) };
+        if (editItem) response = await menuAPI.updateItem(editItem.id, data);
+        else response = await menuAPI.createItem(data);
+      }
+      toast.success(editItem ? 'Item updated!' : 'Item created!');
       setShowModal(false);
       loadData();
     } catch (err) { toast.error('Operation failed'); }
@@ -62,7 +83,7 @@ const AdminMenu = () => {
         </div>
         <div className="flex gap-3">
           <button onClick={() => setShowCategoryModal(true)} className="btn-secondary flex items-center gap-2"><Plus size={16} /> Category</button>
-          <button onClick={openAdd} className="btn-primary flex items-center gap-2"><Plus size={16} /> Add Item</button>
+          <button onClick={openAddWithReset} className="btn-primary flex items-center gap-2"><Plus size={16} /> Add Item</button>
         </div>
       </div>
 
@@ -95,7 +116,7 @@ const AdminMenu = () => {
                   </td>
                   <td className="px-6 py-4">{item.is_featured ? '⭐' : '-'}</td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => openEdit(item)} className="text-gray-400 hover:text-blue-500 mr-2"><Edit2 size={16} /></button>
+                    <button onClick={() => openEditWithReset(item)} className="text-gray-400 hover:text-blue-500 mr-2"><Edit2 size={16} /></button>
                     <button onClick={() => handleDelete(item.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
                   </td>
                 </tr>
@@ -132,6 +153,13 @@ const AdminMenu = () => {
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} className="w-full" />
+                {editItem && editItem.image && (
+                  <img src={editItem.image} alt="current" className="mt-2 h-20 object-cover rounded" />
+                )}
               </div>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
