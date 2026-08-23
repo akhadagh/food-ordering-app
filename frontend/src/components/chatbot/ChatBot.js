@@ -12,7 +12,7 @@ const FAQ = {
   'cancel': 'You can cancel your order if it is still in "Placed" or "Confirmed" status. Go to My Orders > select the order > Cancel.',
   'hours': 'We are open from 6:00 AM to 11:00 PM, Monday to Saturday. Orders on Sundays are also available.',
   'location': 'We deliver across Accra, including Osu, Labone, Cantonments, East Legon, Achimota, Tema, and surrounding areas.',
-  'contact': 'You can reach us at +233 24 123 4567 or email hello@foodgh.com. Our office is at 123 Oxford Street, Osu, Accra.',
+  'contact': 'You can reach us at +233 24 123 4567 or email hello@efiaseat.com. Our office is at 123 Oxford Street, Osu, Accra.',
   'refund': 'If you are not satisfied with your order, please contact us within 1 hour of delivery. We will review and process a refund or replacement.',
   'account': 'Click "Sign Up" to create a free account. You can track orders, save addresses, and get promo offers.',
 };
@@ -37,7 +37,7 @@ const getBotResponse = (input) => {
   const lower = input.toLowerCase();
 
   if (lower.match(/\b(hi|hello|hey|good\s*(morning|afternoon|evening))\b/)) {
-    return "Hello! Welcome to FoodGH. I'm here to help you with ordering food, payments, delivery, and more. What would you like to know?";
+    return "Hello! Welcome to Efia'sEat. I'm here to help you with ordering food, payments, delivery, and more. What would you like to know?";
   }
   if (lower.match(/\b(thank|thanks)\b/)) {
     return "You're welcome! Is there anything else I can help you with?";
@@ -46,7 +46,7 @@ const getBotResponse = (input) => {
     return "I can help you with:\n- Menu & food items\n- Delivery info\n- Payment methods (MoMo, Vodafone Cash, etc.)\n- Promo codes\n- Order tracking\n- Account info\n- Contact details\n\nJust ask me anything!";
   }
   if (lower.match(/\b(bye|goodbye|see you)\b/)) {
-    return "Goodbye! Enjoy your meal. Visit us again at FoodGH!";
+    return "Goodbye! Enjoy your meal. Visit us again at Efia'sEat!";
   }
 
   for (const [key, keywords] of Object.entries(KEYWORDS)) {
@@ -61,7 +61,7 @@ const getBotResponse = (input) => {
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'bot', text: "Hello! I'm FoodGH Assistant. How can I help you today?" }
+    { role: 'bot', text: "Hello! I'm Efia'sEat Assistant. How can I help you today?" }
   ]);
   const [input, setInput] = useState('');
   const messagesEnd = useRef(null);
@@ -98,7 +98,7 @@ const ChatBot = () => {
               <Bot size={22} />
             </div>
             <div>
-              <h3 className="font-semibold">FoodGH Assistant</h3>
+              <h3 className="font-semibold">Efia&apos;sEat Assistant</h3>
               <p className="text-xs text-white/80">Online - Typically replies instantly</p>
             </div>
           </div>

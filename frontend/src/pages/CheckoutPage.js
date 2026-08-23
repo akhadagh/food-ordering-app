@@ -100,7 +100,7 @@ const CheckoutPage = () => {
               {form.payment_method === 'vodafone_cash' && `Dial *110# and send GH₵${total.toFixed(2)} to 0501234567. Reference: ORDER-${orderId}`}
               {form.payment_method === 'airteltigo_money' && `Dial *185# and send GH₵${total.toFixed(2)} to 0261234567. Reference: ORDER-${orderId}`}
               {form.payment_method === 'card' && `A payment link has been sent to your phone. Complete payment of GH₵${total.toFixed(2)} to confirm your order.`}
-              {form.payment_method === 'bank_transfer' && `Transfer GH₵${total.toFixed(2)} to FoodGH Account - Bank: GCB, Account: 1234567890, Name: FoodGH Ltd. Reference: ORDER-${orderId}`}
+              {form.payment_method === 'bank_transfer' && `Transfer GH₵${total.toFixed(2)} to Efia'sEat Account - Bank: GCB, Account: 1234567890, Name: Efia'sEat Ltd. Reference: ORDER-${orderId}`}
             </p>
           </div>
         )}

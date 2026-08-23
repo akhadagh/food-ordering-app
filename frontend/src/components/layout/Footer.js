@@ -8,9 +8,9 @@ const Footer = () => (
         <div>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">F</span>
+              <span className="text-white font-bold text-lg">E</span>
             </div>
-            <span className="text-xl font-bold text-white">Food<span className="text-primary-400">GH</span></span>
+            <span className="text-xl font-bold text-white">Efia&apos;s<span className="text-primary-400">Eat</span></span>
           </div>
           <p className="text-sm text-gray-400">Delivering authentic Ghanaian meals to your doorstep. Fresh, hot, and made with love.</p>
         </div>
@@ -36,7 +36,7 @@ const Footer = () => (
           <div className="space-y-2 text-sm">
             <p>123 Oxford Street, Osu, Accra</p>
             <p>+233 24 123 4567</p>
-            <p>hello@foodgh.com</p>
+            <p>hello@efiaseat.com</p>
             <p className="flex items-center gap-2 mt-3">
               <span className="px-2 py-1 bg-green-900/50 text-green-400 rounded text-xs font-medium">MoMo: 0241234567</span>
             </p>
@@ -44,7 +44,7 @@ const Footer = () => (
         </div>
       </div>
       <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-500">
-        <p>&copy; {new Date().getFullYear()} FoodGH. All rights reserved. Made in Ghana.</p>
+        <p>&copy; {new Date().getFullYear()} Efia&apos;sEat. All rights reserved. Made in Ghana.</p>
       </div>
     </div>
   </footer>

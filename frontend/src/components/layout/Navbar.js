@@ -19,9 +19,9 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">F</span>
+              <span className="text-white font-bold text-lg">E</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">Food<span className="text-primary-500">GH</span></span>
+            <span className="text-xl font-bold text-gray-900">Efia&apos;s<span className="text-primary-500">Eat</span></span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
