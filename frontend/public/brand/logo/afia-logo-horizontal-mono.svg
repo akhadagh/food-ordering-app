@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 305 64" width="305" height="64" role="img" aria-label="Afia Food Hub">
+  <title>Afia Food Hub</title>
+  <desc>Afia Food Hub logo</desc>
+  <g transform="translate(4 10.76) scale(0.72)">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 14 C27 10 37 7 32 2" stroke="#26221E" stroke-width="3.4"/>
+    <path d="M18 41 L32 14 L46 41" stroke="#26221E" stroke-width="5.4"/>
+    <path d="M22.7 32 L41.3 32" stroke="#26221E" stroke-width="4.6"/>
+    <path d="M11 41 L53 41" stroke="#26221E" stroke-width="5.0"/>
+    <path d="M11 41 A21 16 0 0 0 53 41" stroke="#26221E" stroke-width="5.0"/>
+  </g>
+  </g>
+  <g transform="translate(70.08 8.03) scale(0.94)">
+    <g transform="translate(0 0.0)" fill="none" stroke="#26221E" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 40 L12.5 12 L25.0 40"/><path d="M6.7 30 L18.3 30"/>
+    <path d="M31.0 40 L31.0 18 A6 6 0 0 1 37.0 12"/><path d="M25.0 22 L38.0 22"/>
+    <path d="M43.0 20 L43.0 40"/><circle cx="43.0" cy="11" r="2.4" fill="currentColor" stroke="none"/>
+    <circle cx="57.5" cy="30" r="9.5"/><path d="M67.0 20 L67.0 40"/>
+    <path d="M82.0 12 L82.0 40"/><path d="M82.0 12 L99.0 12"/><path d="M82.0 25 L95.0 25"/>
+    <circle cx="110.0" cy="30" r="9.5"/>
+    <circle cx="132.0" cy="30" r="9.5"/>
+    <circle cx="153.5" cy="30" r="9.5"/><path d="M163.0 12 L163.0 40"/>
+    <path d="M178.0 12 L178.0 40"/><path d="M197.0 12 L197.0 40"/><path d="M178.0 26 L197.0 26"/>
+    <path d="M201.0 20 L201.0 31 A9.5 9 0 0 0 220.0 31 L220.0 20"/>
+    <path d="M223.0 12 L223.0 40"/><circle cx="233.5" cy="30" r="9.5"/>
+    </g>
+  </g>
+</svg>

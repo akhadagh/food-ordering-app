@@ -21,3 +21,11 @@ yarn-error.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# local development database (PGlite)
+backend/.pgdata/
+backend/uploads/
+
+# generated brand build artefacts
+.brand-cache/
+__pycache__/

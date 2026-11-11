@@ -2,14 +2,296 @@
 @tailwind components;
 @tailwind utilities;
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Inter', system-ui, sans-serif; background: #fafafa; }
+/* ==========================================================================
+   Afia Food Hub — design tokens
+   Source of truth: BRAND_GUIDELINES.md §3–4
+   ========================================================================== */
+:root {
+  /* Brand families */
+  --afia-clay-50: #FEF4F1;
+  --afia-clay-100: #FCE5DF;
+  --afia-clay-200: #F8C9BE;
+  --afia-clay-300: #F2A493;
+  --afia-clay-400: #E37F69;
+  --afia-clay-500: #C4422B;
+  --afia-clay-600: #A8341F;
+  --afia-clay-700: #8A2B1A;
+  --afia-clay-800: #702519;
+  --afia-clay-900: #5C2117;
 
+  --afia-garden-50: #F0F7F1;
+  --afia-garden-100: #DDEDDF;
+  --afia-garden-200: #BBDCC1;
+  --afia-garden-300: #8EC39A;
+  --afia-garden-400: #5BA56E;
+  --afia-garden-500: #2F7A46;
+  --afia-garden-600: #256139;
+  --afia-garden-700: #1E4F30;
+  --afia-garden-800: #193F27;
+  --afia-garden-900: #143320;
+
+  --afia-gold-50: #FEF9E9;
+  --afia-gold-100: #FDF0C6;
+  --afia-gold-200: #FBE18C;
+  --afia-gold-300: #F8CE52;
+  --afia-gold-400: #F0B824;
+  --afia-gold-500: #DE9710;
+  --afia-gold-600: #B87606;
+  --afia-gold-700: #96600A;
+  --afia-gold-800: #7A4D0B;
+  --afia-gold-900: #64400D;
+
+  --afia-bamboo-0: #FFFFFF;
+  --afia-bamboo-50: #FAF8F5;
+  --afia-bamboo-100: #F4F1EC;
+  --afia-bamboo-200: #E8E3DB;
+  --afia-bamboo-300: #D5CEC3;
+  --afia-bamboo-400: #B0A698;
+  --afia-bamboo-500: #8A8073;
+  --afia-bamboo-600: #6B6257;
+  --afia-bamboo-700: #544D45;
+  --afia-bamboo-800: #3A352F;
+  --afia-bamboo-900: #26221E;
+
+  --afia-danger-50: #FEF2F2;
+  --afia-danger-500: #DC2626;
+  --afia-danger-600: #B91C1C;
+  --afia-danger-700: #991B1B;
+
+  /* Semantic aliases */
+  --afia-primary: var(--afia-clay-500);
+  --afia-primary-hover: var(--afia-clay-600);
+  --afia-primary-soft: var(--afia-clay-50);
+  --afia-secondary: var(--afia-garden-600);
+  --afia-accent: var(--afia-gold-500);
+  --afia-accent-text: var(--afia-gold-700);
+  --afia-bg: var(--afia-bamboo-50);
+  --afia-surface: var(--afia-bamboo-0);
+  --afia-surface-muted: var(--afia-bamboo-100);
+  --afia-border: var(--afia-bamboo-200);
+  --afia-text: var(--afia-bamboo-900);
+  --afia-text-muted: var(--afia-bamboo-600);
+  --afia-text-subtle: var(--afia-bamboo-500);
+  --afia-dark: var(--afia-bamboo-900);
+
+  /* Radii */
+  --afia-radius-card: 1rem;
+  --afia-radius-control: 0.75rem;
+  --afia-radius-pill: 9999px;
+
+  /* Motion — restrained on purpose */
+  --afia-ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --afia-dur: 180ms;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--afia-bg);
+    color: var(--afia-text);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Fraunces', Georgia, Cambria, serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--afia-text);
+  }
+
+  /* Prices, totals and any numeric column align on the decimal */
+  .tabular,
+  .brand-price {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* A single, consistent, high-contrast focus ring */
+  :focus-visible {
+    outline: 2px solid var(--afia-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--afia-clay-200);
+    color: var(--afia-clay-900);
+  }
+
+  /* Respect the user's motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   Components
+   ========================================================================== */
 @layer components {
-  .btn-primary { @apply bg-primary-500 hover:bg-primary-600 text-white font-semibold py-2.5 px-6 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-95; }
-  .btn-secondary { @apply bg-white hover:bg-gray-50 text-gray-700 font-semibold py-2.5 px-6 rounded-xl border border-gray-200 transition-all duration-200 shadow-sm; }
-  .btn-danger { @apply bg-accent-500 hover:bg-accent-600 text-white font-semibold py-2.5 px-6 rounded-xl transition-all duration-200; }
-  .input-field { @apply w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all duration-200 text-gray-700; }
-  .card { @apply bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden; }
-  .page-container { @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8; }
+  /* --- Buttons ---------------------------------------------------------- */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-control bg-primary-500 px-6 py-2.5
+           text-[0.9375rem] font-semibold text-white shadow-brand transition-all duration-200
+           hover:bg-primary-600 hover:shadow-lg active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-control border border-bamboo-200
+           bg-white px-6 py-2.5 text-[0.9375rem] font-semibold text-bamboo-700 transition-all
+           duration-200 hover:border-bamboo-300 hover:bg-bamboo-50 active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-control px-4 py-2.5
+           text-[0.9375rem] font-semibold text-bamboo-700 transition-colors duration-200
+           hover:bg-bamboo-100 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-control bg-danger-500 px-6 py-2.5
+           text-[0.9375rem] font-semibold text-white transition-all duration-200
+           hover:bg-danger-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-sm {
+    @apply px-4 py-2 text-sm;
+  }
+
+  /* --- Form controls ---------------------------------------------------- */
+  .input-field {
+    @apply w-full rounded-control border border-bamboo-200 bg-white px-4 py-3 text-bamboo-900
+           transition-all duration-200 placeholder:text-bamboo-400
+           focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25
+           disabled:cursor-not-allowed disabled:bg-bamboo-50 disabled:text-bamboo-500;
+  }
+
+  .select-field {
+    @apply input-field appearance-none bg-[length:1.1rem] bg-[right_0.75rem_center] bg-no-repeat pr-10;
+  }
+
+  .label {
+    @apply mb-1 block text-[0.8125rem] font-semibold text-bamboo-700;
+  }
+
+  .field-error {
+    @apply mt-1 text-[0.8125rem] font-medium text-danger-600;
+  }
+
+  .field-hint {
+    @apply mt-1 text-[0.8125rem] text-bamboo-600;
+  }
+
+  /* --- Surfaces --------------------------------------------------------- */
+  .card {
+    @apply rounded-card border border-bamboo-200 bg-white shadow-card;
+  }
+
+  .card-interactive {
+    @apply card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover;
+  }
+
+  .page-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  .page-title {
+    @apply font-display text-display-md text-bamboo-900;
+  }
+
+  .page-subtitle {
+    @apply mt-1 text-bamboo-600;
+  }
+
+  /* --- Badges ----------------------------------------------------------- */
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs font-semibold;
+  }
+
+  .badge-success { @apply badge bg-garden-50 text-garden-700; }
+  .badge-warning { @apply badge bg-gold-50 text-gold-700; }
+  .badge-danger  { @apply badge bg-danger-50 text-danger-700; }
+  .badge-accent  { @apply badge bg-clay-50 text-clay-700; }
+  .badge-neutral { @apply badge bg-bamboo-100 text-bamboo-700; }
+
+  /* --- Pricing ---------------------------------------------------------- */
+  .brand-price {
+    @apply font-semibold tabular-nums text-primary-600;
+  }
+
+  /* --- Navigation ------------------------------------------------------- */
+  .nav-link {
+    @apply relative py-2 text-[0.9375rem] font-medium text-bamboo-600 transition-colors
+           duration-200 hover:text-primary-600;
+  }
+
+  .nav-link-active {
+    @apply text-primary-600;
+  }
+
+  .nav-link-active::after {
+    content: '';
+    @apply absolute -bottom-0.5 left-0 h-0.5 w-full rounded-full bg-accent-500;
+  }
+
+  /* --- Media ------------------------------------------------------------ */
+  .media {
+    @apply relative overflow-hidden bg-clay-50;
+  }
+
+  .media img {
+    @apply h-full w-full object-cover transition-transform duration-500 ease-out;
+  }
+
+  .group:hover .media img {
+    transform: scale(1.04);
+  }
+
+  /* --- Accessibility helpers -------------------------------------------- */
+  .sr-only-focusable {
+    @apply sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100]
+           focus:rounded-control focus:bg-white focus:px-4 focus:py-2 focus:text-sm
+           focus:font-semibold focus:text-primary-600 focus:shadow-lg;
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded-control bg-bamboo-100;
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+
+  /* Scrim used over photography so text always meets contrast */
+  .media-scrim {
+    background: linear-gradient(180deg, rgba(38, 34, 30, 0) 30%, rgba(38, 34, 30, 0.82) 100%);
+  }
+
+  .media-scrim-left {
+    background: linear-gradient(90deg, rgba(38, 34, 30, 0.88) 0%, rgba(38, 34, 30, 0.55) 45%, rgba(38, 34, 30, 0) 100%);
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Afia Food Hub">
+  <title>Afia Food Hub</title>
+  <desc>Afia Food Hub emblem</desc>
+  <g fill="none" stroke="#26221E" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 41 L32 14 L46 41" stroke-width="4.6"/>
+    <path d="M22.7 32 L41.3 32" stroke-width="3.8"/>
+    <path d="M11 41 L53 41" stroke-width="3.4"/>
+    <path d="M11 41 A21 16 0 0 0 53 41" stroke-width="3.4"/>
+  </g>
+</svg>

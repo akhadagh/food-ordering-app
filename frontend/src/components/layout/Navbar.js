@@ -1,102 +1,209 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
-import { ShoppingCart, User, Menu, X, ChevronDown, LayoutDashboard, LogOut, ClipboardList } from 'lucide-react';
+import { BrandLogo } from '../brand/BrandLogo';
+import {
+  ShoppingCart,
+  User,
+  Menu,
+  X,
+  ChevronDown,
+  LayoutDashboard,
+  LogOut,
+  ClipboardList,
+} from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout, isAdmin } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenu, setUserMenu] = useState(false);
+  const menuRef = useRef(null);
 
-  const handleLogout = () => { logout(); navigate('/'); setUserMenu(false); };
+  // Close the account menu when clicking outside or navigating.
+  useEffect(() => {
+    setMobileOpen(false);
+    setUserMenu(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!userMenu) return undefined;
+    const onClick = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) setUserMenu(false);
+    };
+    const onKey = (event) => {
+      if (event.key === 'Escape') setUserMenu(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [userMenu]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+    setUserMenu(false);
+  };
+
+  const isActive = (path) =>
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+
+  const links = [
+    { to: '/', label: 'Home' },
+    { to: '/menu', label: 'Menu' },
+    ...(user ? [{ to: '/orders', label: 'My orders' }] : []),
+    ...(isAdmin ? [{ to: '/admin', label: 'Dashboard' }] : []),
+  ];
 
   return (
-    <nav className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900">Efia&apos;s<span className="text-primary-500">Eat</span></span>
+    <header className="sticky top-0 z-50 border-b border-bamboo-200 bg-white/95 backdrop-blur">
+      <nav className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Main">
+        <div className="flex h-16 items-center justify-between">
+          <Link
+            to="/"
+            className="flex items-center gap-2 rounded-control focus-visible:outline-none"
+            aria-label="Afia Food Hub — home"
+          >
+            <BrandLogo variant="horizontal" height={36} className="hidden sm:block" />
+            <BrandLogo variant="icon" height={34} className="sm:hidden" />
           </Link>
 
-          <div className="hidden md:flex items-center gap-8">
-            <Link to="/" className="text-gray-600 hover:text-primary-500 font-medium transition">Home</Link>
-            <Link to="/menu" className="text-gray-600 hover:text-primary-500 font-medium transition">Menu</Link>
-            {user && <Link to="/orders" className="text-gray-600 hover:text-primary-500 font-medium transition">My Orders</Link>}
-            {isAdmin && <Link to="/admin" className="text-gray-600 hover:text-primary-500 font-medium transition">Dashboard</Link>}
+          <div className="hidden items-center gap-8 md:flex">
+            {links.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`nav-link ${isActive(link.to) ? 'nav-link-active' : ''}`}
+                aria-current={isActive(link.to) ? 'page' : undefined}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link to="/cart" className="relative p-2 text-gray-600 hover:text-primary-500 transition">
-              <ShoppingCart size={22} />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/cart"
+              className="relative rounded-control p-2 text-bamboo-600 transition-colors hover:bg-bamboo-100 hover:text-primary-600"
+              aria-label={`Cart, ${totalItems} item${totalItems === 1 ? '' : 's'}`}
+            >
+              <ShoppingCart size={22} aria-hidden="true" />
               {totalItems > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-accent-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {totalItems}
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent-500 text-[0.6875rem] font-bold text-white">
+                  {totalItems > 99 ? '99+' : totalItems}
                 </span>
               )}
             </Link>
 
             {user ? (
-              <div className="relative">
-                <button onClick={() => setUserMenu(!userMenu)} className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 rounded-xl px-3 py-2 transition">
-                  <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold text-sm">{user.name?.charAt(0)}</span>
-                  </div>
-                  <span className="hidden sm:block text-sm font-medium text-gray-700">{user.name?.split(' ')[0]}</span>
-                  <ChevronDown size={16} className="text-gray-400" />
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={() => setUserMenu((open) => !open)}
+                  className="flex items-center gap-2 rounded-control bg-bamboo-50 px-2.5 py-1.5 transition-colors hover:bg-bamboo-100 sm:px-3 sm:py-2"
+                  aria-haspopup="menu"
+                  aria-expanded={userMenu}
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
+                    {user.name?.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="hidden text-sm font-medium text-bamboo-700 sm:block">
+                    {user.name?.split(' ')[0]}
+                  </span>
+                  <ChevronDown size={16} className="text-bamboo-400" aria-hidden="true" />
                 </button>
+
                 {userMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setUserMenu(false)} />
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
-                      <div className="px-4 py-2 border-b border-gray-100">
-                        <p className="font-semibold text-gray-900">{user.name}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
-                      </div>
-                      <Link to="/profile" onClick={() => setUserMenu(false)} className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition">
-                        <User size={16} /> Profile
-                      </Link>
-                      <Link to="/orders" onClick={() => setUserMenu(false)} className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition">
-                        <ClipboardList size={16} /> My Orders
-                      </Link>
-                      {isAdmin && (
-                        <Link to="/admin" onClick={() => setUserMenu(false)} className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition">
-                          <LayoutDashboard size={16} /> Admin Dashboard
-                        </Link>
-                      )}
-                      <hr className="my-2 border-gray-100" />
-                      <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-2.5 text-accent-500 hover:bg-accent-50 transition w-full">
-                        <LogOut size={16} /> Sign Out
-                      </button>
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-60 overflow-hidden rounded-card border border-bamboo-200 bg-white py-2 shadow-card-hover"
+                  >
+                    <div className="border-b border-bamboo-100 px-4 py-2.5">
+                      <p className="truncate font-semibold text-bamboo-900">{user.name}</p>
+                      <p className="truncate text-xs text-bamboo-600">{user.email}</p>
                     </div>
-                  </>
+                    <Link
+                      to="/profile"
+                      role="menuitem"
+                      className="flex items-center gap-3 px-4 py-2.5 text-bamboo-700 transition-colors hover:bg-bamboo-50"
+                    >
+                      <User size={16} aria-hidden="true" /> Profile
+                    </Link>
+                    <Link
+                      to="/orders"
+                      role="menuitem"
+                      className="flex items-center gap-3 px-4 py-2.5 text-bamboo-700 transition-colors hover:bg-bamboo-50"
+                    >
+                      <ClipboardList size={16} aria-hidden="true" /> My orders
+                    </Link>
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        role="menuitem"
+                        className="flex items-center gap-3 px-4 py-2.5 text-bamboo-700 transition-colors hover:bg-bamboo-50"
+                      >
+                        <LayoutDashboard size={16} aria-hidden="true" /> Admin dashboard
+                      </Link>
+                    )}
+                    <hr className="my-2 border-bamboo-100" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-danger-600 transition-colors hover:bg-danger-50"
+                    >
+                      <LogOut size={16} aria-hidden="true" /> Sign out
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
-              <Link to="/login" className="btn-primary text-sm">Sign In</Link>
+              <Link to="/login" className="btn-primary btn-sm">
+                Sign in
+              </Link>
             )}
 
-            <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden p-2 text-gray-600">
-              {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+            <button
+              type="button"
+              onClick={() => setMobileOpen((open) => !open)}
+              className="rounded-control p-2 text-bamboo-600 transition-colors hover:bg-bamboo-100 md:hidden"
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-menu"
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            >
+              {mobileOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
             </button>
           </div>
         </div>
 
         {mobileOpen && (
-          <div className="md:hidden pb-4 border-t border-gray-100 mt-2 pt-4 space-y-2">
-            <Link to="/" onClick={() => setMobileOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium">Home</Link>
-            <Link to="/menu" onClick={() => setMobileOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium">Menu</Link>
-            {user && <Link to="/orders" onClick={() => setMobileOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium">My Orders</Link>}
-            {isAdmin && <Link to="/admin" onClick={() => setMobileOpen(false)} className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium">Dashboard</Link>}
+          <div id="mobile-menu" className="border-t border-bamboo-100 py-3 md:hidden">
+            <div className="space-y-1">
+              {links.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={`block rounded-control px-3 py-2.5 font-medium transition-colors ${
+                    isActive(link.to)
+                      ? 'bg-clay-50 text-primary-600'
+                      : 'text-bamboo-700 hover:bg-bamboo-50'
+                  }`}
+                  aria-current={isActive(link.to) ? 'page' : undefined}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
           </div>
         )}
-      </div>
-    </nav>
+      </nav>
+    </header>
   );
 };
 
