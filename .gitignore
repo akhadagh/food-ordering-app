@@ -9,6 +9,9 @@ build/
 # env files
 .env
 .env.*
+# ...but never ignore the placeholder template itself
+!.env.example
+!**/.env.example
 
 # logs
 npm-debug.log*
