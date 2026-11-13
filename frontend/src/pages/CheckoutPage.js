@@ -1,202 +1,533 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { orderAPI } from '../services/api';
-import { MapPin, CreditCard, Tag, CheckCircle, Smartphone, Banknote, Wallet } from 'lucide-react';
+import { orderAPI, menuAPI, apiErrorMessage } from '../services/api';
+import { BrandPrice, BrandLoader, BrandErrorState, PageMeta } from '../components/brand';
+import {
+  MapPin,
+  CreditCard,
+  Tag,
+  CheckCircle,
+  Smartphone,
+  Banknote,
+  Wallet,
+  Store,
+  Truck,
+  AlertCircle,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const PAYMENT_METHODS = [
-  { id: 'mtn_momo', name: 'MTN Mobile Money', icon: <Smartphone size={20} />, color: 'bg-yellow-400 text-white', desc: 'Pay with MTN MoMo' },
-  { id: 'vodafone_cash', name: 'Vodafone Cash', icon: <Smartphone size={20} />, color: 'bg-red-600 text-white', desc: 'Pay with Vodafone Cash' },
-  { id: 'airteltigo_money', name: 'AirtelTigo Money', icon: <Smartphone size={20} />, color: 'bg-red-500 text-white', desc: 'Pay with AirtelTigo' },
-  { id: 'cash', name: 'Cash on Delivery', icon: <Banknote size={20} />, color: 'bg-green-500 text-white', desc: 'Pay when your food arrives' },
-  { id: 'card', name: 'Debit/Credit Card', icon: <CreditCard size={20} />, color: 'bg-blue-500 text-white', desc: 'Visa, Mastercard' },
-  { id: 'bank_transfer', name: 'Bank Transfer', icon: <Wallet size={20} />, color: 'bg-gray-700 text-white', desc: 'Direct bank transfer' },
+const ICONS = {
+  mtn_momo: Smartphone,
+  telecel_cash: Smartphone,
+  airteltigo_money: Smartphone,
+  card: CreditCard,
+  cash: Banknote,
+  bank_transfer: Wallet,
+};
+
+const FULFILMENT = [
+  { id: 'delivery', label: 'Deliver to me', icon: Truck },
+  { id: 'pickup', label: 'I will collect', icon: Store },
 ];
 
 const CheckoutPage = () => {
-  const { items, subtotal, deliveryFee, clearCart } = useCart();
   const { user } = useAuth();
+  const { items, quote, loading: cartLoading, error: cartError, reload, clear } = useCart();
   const navigate = useNavigate();
+
   const [form, setForm] = useState({
     delivery_address: user?.address || '',
     delivery_notes: '',
-    payment_method: 'mtn_momo',
     phone_number: user?.phone || '',
+    payment_method: 'cash',
+    fulfilment_type: 'delivery',
     promo_code: '',
   });
   const [discount, setDiscount] = useState(0);
   const [promoApplied, setPromoApplied] = useState(false);
+  const [promoBusy, setPromoBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState(null);
+  const [placedOrder, setPlacedOrder] = useState(null);
+  const [error, setError] = useState(null);
+  const [idempotencyKey] = useState(
+    () => `af-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+  );
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      delivery_address: prev.delivery_address || user?.address || '',
+      phone_number: prev.phone_number || user?.phone || '',
+    }));
+  }, [user]);
+
+  const { data: paymentConfig, isLoading: methodsLoading } = useQuery({
+    queryKey: ['menu', 'payment-methods'],
+    queryFn: async () => (await menuAPI.getPaymentMethods()).data,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (!paymentConfig?.methods?.length) return;
+    const available = paymentConfig.methods.map((m) => m.id);
+    setForm((prev) =>
+      available.includes(prev.payment_method)
+        ? prev
+        : { ...prev, payment_method: available[0] }
+    );
+  }, [paymentConfig]);
+
+  const methods = paymentConfig?.methods || [];
+  const onlineEnabled = Boolean(paymentConfig?.onlineEnabled);
 
   const handleApplyPromo = async () => {
-    if (!form.promo_code) return;
+    const code = form.promo_code.trim();
+    if (!code) return;
+    setPromoBusy(true);
     try {
-      const res = await orderAPI.validatePromo({ code: form.promo_code, subtotal });
-      if (res.data.valid) {
-        setDiscount(res.data.discount);
+      const { data } = await orderAPI.validatePromo(code, quote?.subtotal ?? 0);
+      if (data.valid) {
+        setDiscount(Number(data.discount));
         setPromoApplied(true);
-        toast.success(`Promo applied! GH₵${res.data.discount.toFixed(2)} off`);
+        toast.success(`Promo applied — GH₵ ${Number(data.discount).toFixed(2)} off`);
       } else {
-        toast.error(res.data.message);
+        setPromoApplied(false);
+        setDiscount(0);
+        toast.error(data.message || 'That promo code is not valid.');
       }
     } catch (err) {
-      toast.error('Invalid promo code');
+      setPromoApplied(false);
+      setDiscount(0);
+      toast.error(apiErrorMessage(err, 'That promo code is not valid.'));
+    } finally {
+      setPromoBusy(false);
     }
   };
 
-  const total = subtotal + deliveryFee - discount;
+  const total = useMemo(() => {
+    const base = quote ? Number(quote.total) : 0;
+    return Math.max(0, base - (promoApplied ? discount : 0));
+  }, [quote, discount, promoApplied]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.delivery_address) return toast.error('Please enter delivery address');
-    if (items.length === 0) return toast.error('Cart is empty');
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!form.delivery_address.trim()) {
+      toast.error('Please enter a delivery address.');
+      return;
+    }
+    if (!form.phone_number.trim()) {
+      toast.error('Please enter a phone number we can reach you on.');
+      return;
+    }
+  if (cartError) {
+    return (
+      <div className="page-container">
+        <BrandErrorState
+          title="We could not load your cart"
+          description={cartError}
+          actionLabel="Try again"
+          onAction={reload}
+        />
+      </div>
+    );
+  }
+
+  if (!items.length) {
+      toast.error('Your cart is empty.');
+      return;
+    }
 
     setLoading(true);
+    setError(null);
     try {
-      const orderData = {
-        items: items.map(i => ({
-          menu_item_id: i.id,
-          name: i.name,
-          quantity: i.quantity,
-          price: i.price,
-          custom_options: i.customOptions,
-          special_instructions: i.specialInstructions,
+      const payload = {
+        items: items.map((item) => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          customOptions: item.customOptions || [],
+          specialInstructions: item.specialInstructions || '',
         })),
-        delivery_address: form.delivery_address,
-        delivery_notes: form.delivery_notes,
-        payment_method: form.payment_method,
-        promo_code: promoApplied ? form.promo_code : undefined,
+        deliveryAddress: form.delivery_address.trim(),
+        deliveryNotes: form.delivery_notes.trim() || undefined,
+        customerPhone: form.phone_number.trim(),
+        paymentMethod: form.payment_method,
+        fulfilmentType: form.fulfilment_type,
+        ...(promoApplied ? { promoCode: form.promo_code.trim() } : {}),
       };
 
-      const res = await orderAPI.create(orderData);
-      setOrderId(res.data.id);
+      const { data } = await orderAPI.create(payload, idempotencyKey);
+      setOrderId(data.id);
+      // The cart is emptied straight away, so the amount the customer must
+      // pay is the one the server recorded on the order - not the cart total,
+      // which is zero once the cart has been cleared.
+      setPlacedOrder(data);
       setOrderPlaced(true);
-      clearCart();
-      toast.success('Order placed successfully!');
+      await clear();
+      toast.success('Order placed successfully');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to place order');
+      setError(apiErrorMessage(err, 'We could not place your order. Please try again.'));
+      toast.error(apiErrorMessage(err, 'We could not place your order.'));
     } finally {
       setLoading(false);
     }
   };
 
-  if (orderPlaced) {
+  if (methodsLoading || cartLoading) {
     return (
-      <div className="page-container text-center py-20">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle size={40} className="text-green-500" />
-        </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Order Placed!</h2>
-        <p className="text-gray-500 mb-2">Your order #{orderId} has been placed successfully</p>
-        {form.payment_method !== 'cash' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 max-w-md mx-auto my-6">
-            <p className="text-yellow-800 font-medium">Payment Instructions</p>
-            <p className="text-sm text-yellow-700 mt-1">
-              {form.payment_method === 'mtn_momo' && `Dial *170# on your MTN phone and send GH₵${total.toFixed(2)} to merchant number 0241234567. Reference: ORDER-${orderId}`}
-              {form.payment_method === 'vodafone_cash' && `Dial *110# and send GH₵${total.toFixed(2)} to 0501234567. Reference: ORDER-${orderId}`}
-              {form.payment_method === 'airteltigo_money' && `Dial *185# and send GH₵${total.toFixed(2)} to 0261234567. Reference: ORDER-${orderId}`}
-              {form.payment_method === 'card' && `A payment link has been sent to your phone. Complete payment of GH₵${total.toFixed(2)} to confirm your order.`}
-              {form.payment_method === 'bank_transfer' && `Transfer GH₵${total.toFixed(2)} to Efia'sEat Account - Bank: GCB, Account: 1234567890, Name: Efia'sEat Ltd. Reference: ORDER-${orderId}`}
+      <div className="page-container">
+        <BrandLoader label="Preparing checkout…" />
+      </div>
+    );
+  }
+
+  if (orderPlaced) {
+    const isCash = form.payment_method === 'cash';
+    // The amount the customer must pay is the one the server recorded on the
+    // order. The cart is empty by now, so the cart quote is no use here.
+    const confirmedTotal = Number(placedOrder?.total ?? total);
+    return (
+      <div className="page-container">
+        <PageMeta title="Order confirmed" path={`/orders/${orderId}`} />
+        <div className="mx-auto max-w-lg py-12 text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-garden-50">
+            <CheckCircle size={40} className="text-garden-600" aria-hidden="true" />
+          </div>
+          <h1 className="font-display text-display-md text-bamboo-900">Order placed</h1>
+          <p className="mt-2 text-bamboo-600">
+            Order <span className="font-semibold text-bamboo-900">#{orderId}</span> is with the
+            kitchen.
+          </p>
+
+          <div className="mt-6 rounded-card border border-bamboo-200 bg-white p-5 text-left">
+            <p className="text-sm font-semibold text-bamboo-900">
+              {isCash ? 'Paying on delivery' : 'Payment'}
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-bamboo-600">
+              {isCash ? (
+                <>
+                  Please have <strong className="text-bamboo-900">GH₵ {confirmedTotal.toFixed(2)}</strong>{' '}
+                  ready in cash for the rider. We will call you when the order is on its way.
+                </>
+              ) : (
+                <>
+                  Your order is awaiting payment confirmation. We will update the order the moment
+                  the payment is confirmed — you do not need to do anything else.
+                </>
+              )}
             </p>
           </div>
-        )}
-        <div className="flex gap-4 justify-center mt-8">
-          <button onClick={() => navigate(`/orders/${orderId}`)} className="btn-primary">Track Order</button>
-          <button onClick={() => navigate('/menu')} className="btn-secondary">Order More</button>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <button type="button" onClick={() => navigate(`/orders/${orderId}`)} className="btn-primary">
+              Track this order
+            </button>
+            <button type="button" onClick={() => navigate('/menu')} className="btn-secondary">
+              Order something else
+            </button>
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  if (!items.length) {
+    return (
+      <div className="page-container">
+        <BrandErrorState
+          title="Your cart is empty"
+          description="Add a dish before checking out."
+          linkTo="/menu"
+          linkLabel="Browse the menu"
+        />
       </div>
     );
   }
 
   return (
     <div className="page-container">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="card p-6">
-              <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2"><MapPin size={20} /> Delivery Details</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <input type="text" value={user?.name || ''} readOnly className="input-field bg-gray-50" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                  <input type="tel" placeholder="+233 XX XXX XXXX" value={form.phone_number} onChange={e => setForm({ ...form, phone_number: e.target.value })} className="input-field" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Address *</label>
-                  <textarea placeholder="e.g. 123 Oxford Street, Osu, Accra" value={form.delivery_address} onChange={e => setForm({ ...form, delivery_address: e.target.value })} className="input-field" rows={2} required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Notes (Optional)</label>
-                  <input type="text" placeholder="e.g. Near the traffic light, call when arriving" value={form.delivery_notes} onChange={e => setForm({ ...form, delivery_notes: e.target.value })} className="input-field" />
-                </div>
-              </div>
-            </div>
+      <PageMeta title="Checkout" path="/checkout" />
 
-            <div className="card p-6">
-              <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2"><CreditCard size={20} /> Payment Method</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {PAYMENT_METHODS.map(pm => (
-                  <button key={pm.id} type="button" onClick={() => setForm({ ...form, payment_method: pm.id })} className={`p-4 rounded-xl border-2 text-left transition-all ${form.payment_method === pm.id ? 'border-primary-500 bg-primary-50' : 'border-gray-100 hover:border-gray-200'}`}>
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 ${pm.color}`}>{pm.icon}</div>
-                    <p className="font-medium text-sm text-gray-900">{pm.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{pm.desc}</p>
-                  </button>
-                ))}
+      <header className="mb-8">
+        <h1 className="font-display text-display-md text-bamboo-900">Checkout</h1>
+        <p className="mt-1 text-bamboo-600">
+          Almost there — tell us where to bring it and how you would like to pay.
+        </p>
+      </header>
+
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 flex items-start gap-3 rounded-card border border-danger-200 bg-danger-50 p-4 text-sm text-danger-700"
+        >
+          <AlertCircle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            {/* ------------------------------------------------ fulfilment */}
+            <section className="card p-6">
+              <h2 className="font-display text-lg text-bamboo-900">How would you like it?</h2>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                {FULFILMENT.map((option) => {
+                  const Icon = option.icon;
+                  const selected = form.fulfilment_type === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setForm({ ...form, fulfilment_type: option.id })}
+                      className={`flex items-center gap-3 rounded-control border-2 p-4 text-left transition-colors ${
+                        selected
+                          ? 'border-primary-500 bg-clay-50'
+                          : 'border-bamboo-200 hover:border-bamboo-300'
+                      }`}
+                      aria-pressed={selected}
+                    >
+                      <Icon
+                        size={20}
+                        className={selected ? 'text-primary-600' : 'text-bamboo-500'}
+                        aria-hidden="true"
+                      />
+                      <span className="text-sm font-medium text-bamboo-900">{option.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-              {['mtn_momo', 'vodafone_cash', 'airteltigo_money'].includes(form.payment_method) && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Money Number</label>
-                  <input type="tel" placeholder="+233 XX XXX XXXX" value={form.phone_number} onChange={e => setForm({ ...form, phone_number: e.target.value })} className="input-field" />
+            </section>
+
+            {/* --------------------------------------------------- delivery */}
+            <section className="card p-6">
+              <h2 className="font-display text-lg text-bamboo-900">Delivery details</h2>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label htmlFor="full-name" className="label">
+                    Full name
+                  </label>
+                  <input
+                    id="full-name"
+                    type="text"
+                    value={user?.name || ''}
+                    readOnly
+                    className="input-field bg-bamboo-50"
+                  />
                 </div>
+
+                <div>
+                  <label htmlFor="phone" className="label">
+                    Phone number <span className="font-normal text-bamboo-500">(required)</span>
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    required
+                    maxLength={30}
+                    placeholder="+233 24 123 4567"
+                    value={form.phone_number}
+                    onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
+                    className="input-field"
+                  />
+                  <p className="field-hint">We call this number when the order is on its way.</p>
+                </div>
+
+                {form.fulfilment_type === 'delivery' && (
+                  <>
+                    <div>
+                      <label htmlFor="address" className="label">
+                        Delivery address <span className="font-normal text-bamboo-500">(required)</span>
+                      </label>
+                      <textarea
+                        id="address"
+                        required
+                        rows={2}
+                        maxLength={400}
+                        placeholder="e.g. 12 Oxford Street, Osu, Accra"
+                        value={form.delivery_address}
+                        onChange={(e) => setForm({ ...form, delivery_address: e.target.value })}
+                        className="input-field"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="notes" className="label">
+                        Delivery notes
+                      </label>
+                      <input
+                        id="notes"
+                        type="text"
+                        maxLength={500}
+                        placeholder="e.g. Near the traffic light, call on arrival"
+                        value={form.delivery_notes}
+                        onChange={(e) => setForm({ ...form, delivery_notes: e.target.value })}
+                        className="input-field"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {form.fulfilment_type === 'pickup' && (
+                  <p className="rounded-control bg-bamboo-50 p-4 text-sm text-bamboo-600">
+                    We will send you the pickup point and a ready time once the kitchen confirms
+                    your order.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            {/* --------------------------------------------------- payment */}
+            <section className="card p-6">
+              <h2 className="font-display text-lg text-bamboo-900">Payment method</h2>
+              {!onlineEnabled && (
+                <p className="mt-2 rounded-control bg-gold-50 p-3 text-sm text-gold-700">
+                  Online mobile money payments are not switched on at the moment, so cash on
+                  delivery is the only option right now. We will let you know as soon as mobile
+                  money is live.
+                </p>
               )}
-            </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {methods.map((method) => {
+                  const Icon = ICONS[method.id] || CreditCard;
+                  const selected = form.payment_method === method.id;
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setForm({ ...form, payment_method: method.id })}
+                      className={`flex items-start gap-3 rounded-control border-2 p-4 text-left transition-colors ${
+                        selected
+                          ? 'border-primary-500 bg-clay-50'
+                          : 'border-bamboo-200 hover:border-bamboo-300'
+                      }`}
+                      aria-pressed={selected}
+                    >
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-control ${
+                          selected ? 'bg-primary-500 text-white' : 'bg-bamboo-100 text-bamboo-600'
+                        }`}
+                      >
+                        <Icon size={18} aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-bamboo-900">
+                          {method.label}
+                        </span>
+                        <span className="block text-xs text-bamboo-600">
+                          {method.online
+                            ? 'Approved on your phone'
+                            : 'Pay when your food arrives'}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
           </div>
 
-          <div className="space-y-4">
+          {/* ------------------------------------------------------ summary */}
+          <aside className="space-y-4 lg:sticky lg:top-24 lg:h-fit">
             <div className="card p-6">
-              <h3 className="font-bold text-gray-900 text-lg mb-4">Order Summary</h3>
-              <div className="space-y-3">
-                {items.map(item => (
-                  <div key={item.cartId} className="flex justify-between text-sm">
-                    <span className="text-gray-600">{item.name} x{item.quantity}</span>
-                    <span className="font-medium">GH₵{(item.price * item.quantity).toFixed(2)}</span>
-                  </div>
+              <h2 className="font-display text-lg text-bamboo-900">Order summary</h2>
+              <ul className="mt-4 space-y-2.5 text-sm">
+                {items.map((item) => (
+                  <li key={item.id} className="flex justify-between gap-3">
+                    <span className="text-bamboo-600">
+                      {item.name} × {item.quantity}
+                    </span>
+                    <span className="shrink-0 font-medium text-bamboo-900">
+                      GH₵{' '}
+                      {Number(
+                        quote?.items?.find((i) => i.menu_item_id === item.menuItemId)?.line_total ?? 0
+                      ).toFixed(2)}
+                    </span>
+                  </li>
                 ))}
-              </div>
-              <hr className="my-4" />
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>GH₵{subtotal.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Delivery Fee</span><span>GH₵{deliveryFee.toFixed(2)}</span></div>
-                {discount > 0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>-GH₵{discount.toFixed(2)}</span></div>}
-                <hr />
-                <div className="flex justify-between text-lg font-bold"><span>Total</span><span className="text-primary-500">GH₵{total.toFixed(2)}</span></div>
-              </div>
+              </ul>
+
+              <hr className="my-4 border-bamboo-200" />
+
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-bamboo-600">Subtotal</dt>
+                  <dd>
+                    <BrandPrice amount={quote?.subtotal ?? 0} size="sm" tone="ink" />
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-bamboo-600">Delivery</dt>
+                  <dd>
+                    <BrandPrice amount={quote?.delivery_fee ?? 0} size="sm" tone="ink" />
+                  </dd>
+                </div>
+                {promoApplied && (
+                  <div className="flex justify-between text-garden-700">
+                    <dt>Promo</dt>
+                    <dd>
+                      <BrandPrice amount={-discount} size="sm" tone="ink" />
+                    </dd>
+                  </div>
+                )}
+                <hr className="border-bamboo-200" />
+                <div className="flex items-baseline justify-between">
+                  <dt className="font-display text-base text-bamboo-900">Total</dt>
+                  <dd>
+                    <BrandPrice amount={total} size="lg" />
+                  </dd>
+                </div>
+              </dl>
             </div>
 
             <div className="card p-4">
+              <label htmlFor="promo" className="label">
+                Promo code
+              </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="text" placeholder="Promo code" value={form.promo_code} onChange={e => setForm({ ...form, promo_code: e.target.value })} className="input-field pl-9 text-sm" disabled={promoApplied} />
+                  <Tag
+                    size={16}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-bamboo-400"
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="promo"
+                    type="text"
+                    maxLength={40}
+                    placeholder="Enter a code"
+                    value={form.promo_code}
+                    onChange={(e) => {
+                      setForm({ ...form, promo_code: e.target.value.toUpperCase() });
+                      setPromoApplied(false);
+                      setDiscount(0);
+                    }}
+                    disabled={promoApplied}
+                    className="input-field pl-9 text-sm"
+                  />
                 </div>
-                <button type="button" onClick={handleApplyPromo} className={`btn-primary text-sm px-4 ${promoApplied ? 'bg-green-500' : ''}`} disabled={promoApplied}>
-                  {promoApplied ? 'Applied' : 'Apply'}
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  disabled={promoApplied || promoBusy || !form.promo_code.trim()}
+                  className="btn-primary btn-sm shrink-0"
+                >
+                  {promoBusy ? 'Checking…' : promoApplied ? 'Applied' : 'Apply'}
                 </button>
               </div>
             </div>
 
-            <button type="submit" className="btn-primary w-full py-3.5 text-lg flex items-center justify-center gap-2" disabled={loading}>
-              {loading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : `Place Order - GH₵${total.toFixed(2)}`}
+            <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 text-base">
+              {loading ? 'Placing your order…' : `Place order — GH₵ ${total.toFixed(2)}`}
             </button>
-          </div>
+
+            <p className="text-center text-xs leading-relaxed text-bamboo-500">
+              By placing this order you agree that our rider will contact you on the number above.
+            </p>
+          </aside>
         </div>
       </form>
     </div>

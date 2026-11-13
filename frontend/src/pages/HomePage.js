@@ -1,123 +1,304 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { menuAPI } from '../services/api';
-import { ArrowRight, Star, Clock, Truck, Shield, ChevronRight } from 'lucide-react';
+import { BrandLogo, BrandPrice, BrandLoader, BrandErrorState, PageMeta } from '../components/brand';
+import { ArrowRight, Clock, Truck, ShieldCheck, Sparkles } from 'lucide-react';
+import { BRAND, BUSINESS } from '../config/brand';
+
+const FEATURES = [
+  {
+    icon: <Sparkles size={22} aria-hidden="true" />,
+    title: 'Cooked to order',
+    body: 'Every dish leaves the kitchen when you order it, not before.',
+  },
+  {
+    icon: <Truck size={22} aria-hidden="true" />,
+    title: 'Delivered across Accra',
+    body: 'Hot food at your door, with the journey tracked from our kitchen to you.',
+  },
+  {
+    icon: <ShieldCheck size={22} aria-hidden="true" />,
+    title: 'Pay how you like',
+    body: 'Mobile money, card, or cash when the food arrives.',
+  },
+  {
+    icon: <Clock size={22} aria-hidden="true" />,
+    title: 'Honest timing',
+    body: 'A real estimate for your order, updated as it travels.',
+  },
+];
 
 const HomePage = () => {
-  const [featured, setFeatured] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [featuredError, setFeaturedError] = useState(false);
+
+  const {
+    data: featured = [],
+    isLoading: featuredLoading,
+    isError: featuredIsError,
+    refetch: refetchFeatured,
+  } = useQuery({
+    queryKey: ['menu', 'featured'],
+    queryFn: async () => {
+      const { data } = await menuAPI.getItems({ is_featured: true, is_available: true });
+      return data.slice(0, 6);
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['menu', 'categories'],
+    queryFn: async () => (await menuAPI.getCategories()).data,
+    staleTime: 10 * 60 * 1000,
+  });
 
   useEffect(() => {
-    menuAPI.getItems({ is_featured: true }).then(r => setFeatured(r.data.slice(0, 6)));
-    menuAPI.getCategories().then(r => setCategories(r.data));
-  }, []);
+    if (featuredIsError) setFeaturedError(true);
+  }, [featuredIsError]);
 
-  const features = [
-    { icon: <Clock size={24} />, title: 'Fast Delivery', desc: 'Delivered in 30-45 minutes' },
-    { icon: <Shield size={24} />, title: 'Secure Payment', desc: 'MoMo, Vodafone Cash & more' },
-    { icon: <Truck size={24} />, title: 'Live Tracking', desc: 'Track your order in real-time' },
-    { icon: <Star size={24} />, title: 'Quality Food', desc: 'Fresh ingredients, authentic taste' },
-  ];
+  const trustPoints = [
+    BUSINESS.deliveryZones?.length ? `Delivering across ${BUSINESS.deliveryZones.join(', ')}` : null,
+    BUSINESS.hours ? `Open ${BUSINESS.hours}` : null,
+    'Mobile money, card and cash on delivery',
+  ].filter(Boolean);
 
   return (
     <div>
-      <section className="relative bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 relative">
-          <div className="max-w-2xl">
-            <span className="inline-block px-4 py-1.5 bg-white/20 rounded-full text-sm font-medium mb-6 backdrop-blur-sm">
-              Authentic Ghanaian Cuisine
-            </span>
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight mb-6">
-              Delicious Ghanaian<br />Food, Delivered Fresh
-            </h1>
-            <p className="text-lg text-white/80 mb-8 max-w-lg">
-              From Banku with Okra Soup to Jollof Rice - order your favorite local dishes and get them delivered hot to your doorstep across Accra.
+      <PageMeta description={BRAND.shortDescription} path="/" />
+
+      {/* ------------------------------------------------------------ hero */}
+      <section className="relative isolate overflow-hidden bg-brand-dark">
+        <img
+          src="/brand/banners/hero-home-1600x900.jpg"
+          alt="Ghanaian jollof rice and fried plantain, freshly cooked"
+          className="absolute inset-0 h-full w-full object-cover"
+          fetchpriority="high"
+        />
+        <div className="absolute inset-0 media-scrim-left" aria-hidden="true" />
+        <div className="absolute inset-0 bg-gradient-to-t from-bamboo-900/70 via-transparent to-transparent" aria-hidden="true" />
+
+        <div className="relative mx-auto w-full max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8 lg:py-40">
+          <div className="max-w-xl">
+            <p className="mb-5 inline-flex items-center gap-2 rounded-pill bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-accent-300 backdrop-blur">
+              Accra, Ghana
             </p>
-            <div className="flex flex-wrap gap-4">
-              <Link to="/menu" className="btn-primary bg-white text-primary-600 hover:bg-gray-100 text-base px-8 py-3.5 inline-flex items-center gap-2">
-                Order Now <ArrowRight size={18} />
+            <h1 className="font-display text-display-xl text-white text-balance sm:text-display-xl">
+              Real Ghanaian food, cooked to order and delivered hot.
+            </h1>
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-bamboo-200 text-pretty">
+              Jollof, banku and okra, fufu and light soup, waakye and kenkey — made fresh in our
+              kitchen and brought to your table while it is still steaming.
+            </p>
+
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Link
+                to="/menu"
+                className="btn-primary bg-white px-8 py-3.5 text-base text-primary-600 hover:bg-bamboo-50 hover:text-primary-700"
+              >
+                Order now <ArrowRight size={18} aria-hidden="true" />
               </Link>
-              <Link to="/menu" className="btn-secondary border-white/30 text-white hover:bg-white/10 text-base px-8 py-3.5">
-                View Menu
+              <Link
+                to="/menu"
+                className="btn-secondary border-white/25 bg-transparent px-8 py-3.5 text-base text-white hover:border-white/40 hover:bg-white/10 hover:text-white"
+              >
+                See the menu
               </Link>
             </div>
-            <div className="flex items-center gap-6 mt-10 text-sm text-white/70">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-green-400 rounded-full"></span> 500+ Happy Customers</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-yellow-400 rounded-full"></span> 4.8 Rating</span>
-            </div>
+
+            {trustPoints.length > 0 && (
+              <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-2.5 text-sm text-bamboo-300">
+                {trustPoints.map((point) => (
+                  <li key={point} className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent-400" aria-hidden="true" />
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {features.map((f, i) => (
-            <div key={i} className="card p-6 text-center hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-primary-50 text-primary-500 rounded-xl flex items-center justify-center mx-auto mb-3">{f.icon}</div>
-              <h3 className="font-semibold text-gray-900 mb-1">{f.title}</h3>
-              <p className="text-sm text-gray-500">{f.desc}</p>
+      {/* -------------------------------------------------------- features */}
+      <section className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map((feature) => (
+            <div key={feature.title} className="card p-6">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-control bg-clay-50 text-primary-600">
+                {feature.icon}
+              </div>
+              <h2 className="font-display text-lg text-bamboo-900">{feature.title}</h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-bamboo-600">{feature.body}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex justify-between items-center mb-8">
+      {/* ------------------------------------------------------- featured */}
+      <section className="mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
+        <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900">Popular Dishes</h2>
-            <p className="text-gray-500 mt-1">Our most ordered Ghanaian favorites</p>
+            <h2 className="font-display text-display-md text-bamboo-900">Popular dishes</h2>
+            <p className="mt-1 text-bamboo-600">What the kitchen is cooking most right now.</p>
           </div>
-          <Link to="/menu" className="text-primary-500 font-semibold hover:text-primary-600 flex items-center gap-1">
-            View All <ChevronRight size={18} />
+          <Link
+            to="/menu"
+            className="hidden shrink-0 items-center gap-1 text-sm font-semibold text-primary-600 transition-colors hover:text-primary-700 sm:inline-flex"
+          >
+            See the whole menu <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featured.map(item => (
-            <Link key={item.id} to="/menu" className="card group hover:shadow-lg transition-all duration-300">
-              <div className="h-48 bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center text-6xl">
-                {item.name.includes('Jollof') ? '🍚' : item.name.includes('Banku') ? '🥘' : item.name.includes('Fufu') ? '🍲' : item.name.includes('Waakye') ? '🍛' : item.name.includes('Kenkey') ? '🫓' : '🍽️'}
-              </div>
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-gray-900 group-hover:text-primary-500 transition">{item.name}</h3>
-                  <span className="bg-primary-50 text-primary-600 font-bold text-sm px-2.5 py-1 rounded-lg">GH₵{parseFloat(item.price).toFixed(2)}</span>
-                </div>
-                <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>
-                <div className="flex items-center gap-1 mt-3 text-yellow-500">
-                  {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
-                  <span className="text-xs text-gray-400 ml-1">(4.8)</span>
+
+        {featuredLoading && (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="card overflow-hidden">
+                <div className="skeleton h-48 rounded-none" />
+                <div className="space-y-3 p-5">
+                  <div className="skeleton h-5 w-2/3" />
+                  <div className="skeleton h-4 w-full" />
+                  <div className="skeleton h-6 w-24" />
                 </div>
               </div>
-            </Link>
-          ))}
+            ))}
+          </div>
+        )}
+
+        {featuredError && !featuredLoading && (
+          <BrandErrorState
+            title="We could not load the menu"
+            description="Please check your connection and try again."
+            actionLabel="Try again"
+            onAction={() => refetchFeatured()}
+          />
+        )}
+
+        {!featuredLoading && !featuredError && featured.length === 0 && (
+          <div className="card p-10 text-center">
+            <p className="text-bamboo-600">
+              Our menu is being updated right now. Please check back in a moment.
+            </p>
+          </div>
+        )}
+
+        {featured.length > 0 && (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.map((item) => (
+              <Link
+                key={item.id}
+                to="/menu"
+                className="card-interactive group overflow-hidden"
+                aria-label={`${item.name}, ${item.category_name || 'Ghanaian dish'}`}
+              >
+                <div className="media h-48">
+                  {item.image_url ? (
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-clay-50">
+                      <BrandLogo variant="icon" height={56} className="opacity-25" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="font-display text-lg leading-snug text-bamboo-900 transition-colors group-hover:text-primary-600">
+                      {item.name}
+                    </h3>
+                    <BrandPrice amount={item.price} size="sm" className="shrink-0" />
+                  </div>
+                  {item.description && (
+                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-bamboo-600">
+                      {item.description}
+                    </p>
+                  )}
+                  {item.category_name && (
+                    <span className="badge-neutral mt-3">{item.category_name}</span>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ----------------------------------------------------- categories */}
+      <section className="bg-white py-14">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="font-display text-display-md text-bamboo-900">Browse by category</h2>
+          <p className="mt-1 text-bamboo-600">From light soup and banku to rice and everything in between.</p>
+
+          {categoriesLoading ? (
+            <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="skeleton h-44" />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              {categories.map((category) => (
+                <Link
+                  key={category.id}
+                  to={`/menu?category=${category.slug}`}
+                  className="card-interactive group overflow-hidden"
+                >
+                  <div className="media h-32">
+                    {category.image_url ? (
+                      <img
+                        src={category.image_url}
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-clay-50">
+                        <BrandLogo variant="icon" height={44} className="opacity-25" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-display text-base leading-snug text-bamboo-900 transition-colors group-hover:text-primary-600">
+                      {category.name}
+                    </h3>
+                    {category.description && (
+                      <p className="mt-1 line-clamp-2 text-xs text-bamboo-600">
+                        {category.description}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8">Browse by Category</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {categories.map(cat => (
-            <Link key={cat.id} to="/menu" className="card p-6 text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
-              <div className="text-4xl mb-3">
-                {cat.name.includes('Local') ? '🥘' : cat.name.includes('Rice') ? '🍚' : cat.name.includes('Soup') ? '🍲' : cat.name.includes('Drink') ? '🥤' : ' sides'}
-              </div>
-              <h3 className="font-semibold text-gray-900 group-hover:text-primary-500 transition">{cat.name}</h3>
-              <p className="text-xs text-gray-400 mt-1">{cat.description}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-primary-500 text-white py-16 mt-12">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Order?</h2>
-          <p className="text-white/80 mb-8">Get your favorite Ghanaian meals delivered in minutes. Use code <span className="font-bold bg-white/20 px-2 py-0.5 rounded">WELCOME10</span> for 10% off your first order!</p>
-          <Link to="/menu" className="btn-primary bg-white text-primary-600 hover:bg-gray-100 text-lg px-10 py-4 inline-flex items-center gap-2">
-            Browse Menu <ArrowRight size={20} />
+      {/* ----------------------------------------------------------- cta */}
+      <section className="relative isolate overflow-hidden bg-brand-gradient py-16">
+        <img
+          src="/brand/banners/promo-delivery-1600x600.jpg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-25"
+          loading="lazy"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto w-full max-w-3xl px-4 text-center sm:px-6">
+          <h2 className="font-display text-display-md text-white text-balance">
+            Hungry? The kitchen is open.
+          </h2>
+          <p className="mt-3 text-bamboo-100">
+            Pick a dish, choose how you want to pay, and we will bring it to you while it is hot.
+          </p>
+          <Link
+            to="/menu"
+            className="btn-primary mt-8 bg-white px-9 py-3.5 text-base text-primary-600 hover:bg-bamboo-50 hover:text-primary-700"
+          >
+            Browse the menu <ArrowRight size={18} aria-hidden="true" />
           </Link>
         </div>
       </section>

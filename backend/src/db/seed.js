@@ -12,7 +12,7 @@
  * administrator credential is exactly the kind of thing that must never ship
  * (audit finding P0-07).
  */
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '../utils/password.js';
 import pg from 'pg';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
@@ -213,7 +213,7 @@ const MENU = [
     category: 'local-favourites',
     price: 48,
     description: 'Jollof rice served with grilled tilapia and fresh vegetables.',
-    image: '/brand/food/jollof-rice-bowl.jpg',
+    image: '/brand/food/jollof-grilled-fish.jpg',
     featured: true,
     options: [],
   },
@@ -322,7 +322,7 @@ async function seed() {
   // ------------------------------------------------------------ admin ----
   if (env.bootstrapAdminEmail && env.bootstrapAdminPassword) {
     const email = env.bootstrapAdminEmail.trim().toLowerCase();
-    const hash = await bcrypt.hash(env.bootstrapAdminPassword, env.bcryptRounds);
+    const hash = await hashPassword(env.bootstrapAdminPassword);
     const { rowCount } = await client.query(
       `INSERT INTO users (name, email, role, password_hash, email_verified)
        VALUES ($1, $2, 'admin', $3, true)

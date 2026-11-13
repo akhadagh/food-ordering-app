@@ -5,6 +5,8 @@ import { requireAuth } from '../middleware/auth.js';
 import { authLimiter, signupLimiter } from '../middleware/rateLimit.js';
 import * as auth from '../services/auth.service.js';
 import { query } from '../config/db.js';
+import { mergeGuestCartIntoUser } from '../services/cart.service.js';
+import { GUEST_CART_COOKIE } from '../middleware/cart.js';
 import { env } from '../config/env.js';
 import { ACCESS_COOKIE, REFRESH_COOKIE, randomToken } from '../utils/tokens.js';
 
@@ -25,6 +27,8 @@ const signupSchema = z
 router.post('/signup', signupLimiter, validate({ body: signupSchema }), async (req, res, next) => {
   try {
     const user = await auth.register(req.body);
+    // Anything the customer put in the cart before signing up comes with them.
+    await mergeGuestCartIntoUser(req.cookies?.[GUEST_CART_COOKIE], user.id);
     const session = auth.issueSession(res, user);
     res.status(201).json({ user, token: session.accessToken });
   } catch (err) {
@@ -48,6 +52,7 @@ router.post('/login', authLimiter, validate({ body: loginSchema }), async (req, 
       password: req.body.password,
       ip: req.ip,
     });
+    await mergeGuestCartIntoUser(req.cookies?.[GUEST_CART_COOKIE], user.id);
     const session = auth.issueSession(res, user);
     res.json({ user, token: session.accessToken });
   } catch (err) {
@@ -68,6 +73,7 @@ router.post('/refresh', async (req, res, next) => {
   try {
     const token = req.cookies?.[REFRESH_COOKIE] || req.body?.refreshToken;
     const user = await auth.rotateRefreshToken(token);
+    await mergeGuestCartIntoUser(req.cookies?.[GUEST_CART_COOKIE], user.id);
     const session = auth.issueSession(res, user);
     res.json({ user, token: session.accessToken });
   } catch (err) {

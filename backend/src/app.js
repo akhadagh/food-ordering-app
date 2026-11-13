@@ -102,6 +102,27 @@ export function createApp() {
     next();
   });
 
+  /**
+   * API responses are never cached by the browser or by an intermediary.
+   *
+   * Express enables ETags by default, so the browser revalidates a cached GET
+   * with If-None-Match and the API answers 304 - which makes the browser
+   * replay the body it cached under a DIFFERENT session. A customer who
+   * signed in could be shown the previous visitor's cart, and a shared device
+   * could show one customer another customer's orders.
+   *
+   * `Cache-Control: no-store` stops the browser storing the response at all,
+   * but a client that sends If-None-Match anyway would still be answered with
+   * 304. ETags are therefore switched off for the whole API, so a
+   * conditional request always receives the full body.
+   */
+  app.set('etag', false);
+
+  app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
+
   /* ------------------------------------------------------------ health -- */
 
   app.get('/api/health', async (_req, res) => {

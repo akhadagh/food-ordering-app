@@ -1,74 +1,235 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
+import { apiErrorMessage } from '../services/api';
+import { BrandLogo, BrandPrice, BrandEmptyState, BrandErrorState, PageMeta } from '../components/brand';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const CartPage = () => {
-  const { items, removeItem, updateQuantity, subtotal, deliveryFee } = useCart();
+  const { items, quote, cart, loading, error, reload, updateQuantity, removeItem } = useCart();
+  const [busyId, setBusyId] = useState(null);
 
-  if (items.length === 0) {
+  const handleQuantity = async (item, quantity) => {
+    setBusyId(item.menuItemId);
+    try {
+      await updateQuantity(item.id, quantity);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'We could not update your cart.'));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRemove = async (item) => {
+    setBusyId(item.menuItemId);
+    try {
+      await removeItem(item.id);
+      toast.success(`${item.name} removed from your cart`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'We could not remove that item.'));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="page-container text-center py-20">
-        <div className="text-6xl mb-4">🛒</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Cart is Empty</h2>
-        <p className="text-gray-500 mb-6">Looks like you haven't added any dishes yet</p>
-        <Link to="/menu" className="btn-primary inline-flex items-center gap-2">
-          <ShoppingBag size={18} /> Browse Menu
-        </Link>
+      <div className="page-container">
+        <div className="skeleton h-9 w-40" />
+        <div className="mt-8 grid gap-8 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="skeleton h-32" />
+            ))}
+          </div>
+          <div className="skeleton h-64" />
+        </div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="page-container">
+        <BrandErrorState
+          title="We could not load your cart"
+          description={error}
+          actionLabel="Try again"
+          onAction={reload}
+        />
+      </div>
+    );
+  }
+
+  if (!items.length) {
+    return (
+      <div className="page-container">
+        <PageMeta title="Your cart" path="/cart" />
+        <BrandEmptyState
+          title="Your cart is empty"
+          description="Nothing here yet. Find something good in the kitchen."
+          actionLabel="Browse the menu"
+          actionTo="/menu"
+          icon={ShoppingBag}
+        />
+      </div>
+    );
+  }
+
+  // A cart can be present but not priceable - for example when a dish now
+  // needs an option that was not chosen. The API explains why, so show that
+  // rather than a generic message.
+  const blockingIssue = (cart?.issues || []).find((issue) => issue.code === 'cart_invalid');
+
   return (
     <div className="page-container">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Cart</h1>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-4">
-          {items.map(item => (
-            <div key={item.cartId} className="card p-4 flex gap-4">
-              <div className="w-20 h-20 bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">
-                {item.name.includes('Jollof') ? '🍚' : item.name.includes('Banku') ? '🥘' : item.name.includes('Fufu') ? '🍲' : '🍽️'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                    {item.customOptions?.length > 0 && (
-                      <p className="text-xs text-gray-400 mt-0.5">{item.customOptions.map(o => `${o.option}: ${o.value}`).join(', ')}</p>
-                    )}
-                    {item.specialInstructions && <p className="text-xs text-gray-400 mt-0.5">Note: {item.specialInstructions}</p>}
-                  </div>
-                  <button onClick={() => removeItem(item.cartId)} className="text-gray-400 hover:text-accent-500 transition p-1"><Trash2 size={16} /></button>
+      <PageMeta title="Your cart" path="/cart" />
+
+      <header className="mb-8">
+        <h1 className="font-display text-display-md text-bamboo-900">Your cart</h1>
+        <p className="mt-1 text-bamboo-600">
+          {items.length} item{items.length === 1 ? '' : 's'} — priced by our kitchen, not your browser.
+        </p>
+      </header>
+
+      {blockingIssue && (
+        <div
+          role="status"
+          className="mb-6 flex items-start gap-3 rounded-card border border-gold-200 bg-gold-50 p-4 text-sm text-gold-700"
+        >
+          <AlertCircle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>
+            {blockingIssue.message} Go back to{' '}
+            <Link to="/menu" className="font-semibold underline">
+              the menu
+            </Link>{' '}
+            to finish your choices.
+          </span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          {items.map((item) => {
+            const line = quote?.items?.find((i) => i.menu_item_id === item.menuItemId);
+            const options = item.customOptions || [];
+            return (
+              <article key={item.id} className="card flex gap-4 p-4">
+                <div className="media h-24 w-24 shrink-0 rounded-control">
+                  {line ? (
+                    <img src={line.image_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-clay-50">
+                      <BrandLogo variant="icon" height={32} className="opacity-25" />
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between items-center mt-3">
-                  <div className="flex items-center gap-2 bg-gray-50 rounded-lg">
-                    <button onClick={() => updateQuantity(item.cartId, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-l-lg transition"><Minus size={14} /></button>
-                    <span className="font-semibold text-sm w-6 text-center">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.cartId, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-r-lg transition"><Plus size={14} /></button>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="font-display text-base text-bamboo-900">{item.name}</h2>
+                      {options.length > 0 && (
+                        <p className="mt-0.5 text-xs text-bamboo-500">
+                          {options.map((o) => `${o.option}: ${o.value}`).join(' · ')}
+                        </p>
+                      )}
+                      {item.specialInstructions && (
+                        <p className="mt-0.5 text-xs text-bamboo-500">
+                          Note: {item.specialInstructions}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(item)}
+                      disabled={busyId === item.menuItemId}
+                      className="shrink-0 rounded-control p-2 text-bamboo-400 transition-colors hover:bg-danger-50 hover:text-danger-600 disabled:opacity-50"
+                      aria-label={`Remove ${item.name} from your cart`}
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                    </button>
                   </div>
-                  <span className="font-bold text-primary-500">GH₵{(item.price * item.quantity).toFixed(2)}</span>
+
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-1 rounded-control border border-bamboo-200 bg-white">
+                      <button
+                        type="button"
+                        onClick={() => handleQuantity(item, item.quantity - 1)}
+                        disabled={busyId === item.menuItemId}
+                        className="rounded-l-control p-2 text-bamboo-600 transition-colors hover:bg-bamboo-50 disabled:opacity-50"
+                        aria-label={`Decrease quantity of ${item.name}`}
+                      >
+                        <Minus size={14} aria-hidden="true" />
+                      </button>
+                      <span className="w-9 text-center text-sm font-semibold tabular-nums">
+                        {item.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleQuantity(item, item.quantity + 1)}
+                        disabled={busyId === item.menuItemId}
+                        className="rounded-r-control p-2 text-bamboo-600 transition-colors hover:bg-bamboo-50 disabled:opacity-50"
+                        aria-label={`Increase quantity of ${item.name}`}
+                      >
+                        <Plus size={14} aria-hidden="true" />
+                      </button>
+                    </div>
+                    <BrandPrice amount={line?.line_total ?? 0} size="sm" tone="ink" />
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              </article>
+            );
+          })}
         </div>
 
-        <div className="card p-6 h-fit sticky top-24">
-          <h3 className="font-bold text-gray-900 text-lg mb-4">Order Summary</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">Subtotal ({items.length} items)</span><span className="font-medium">GH₵{subtotal.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Delivery Fee</span><span className="font-medium">GH₵{deliveryFee.toFixed(2)}</span></div>
-            <hr />
-            <div className="flex justify-between text-lg font-bold"><span>Total</span><span className="text-primary-500">GH₵{(subtotal + deliveryFee).toFixed(2)}</span></div>
+        <aside className="lg:sticky lg:top-24 lg:h-fit">
+          <div className="card p-6">
+            <h2 className="font-display text-lg text-bamboo-900">Order summary</h2>
+            <dl className="mt-5 space-y-3 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-bamboo-600">Subtotal</dt>
+                <dd>
+                  <BrandPrice amount={quote?.subtotal ?? 0} size="sm" tone="ink" />
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-bamboo-600">Delivery</dt>
+                <dd>
+                  <BrandPrice amount={quote?.delivery_fee ?? 0} size="sm" tone="ink" />
+                </dd>
+              </div>
+              {Number(quote?.discount ?? 0) > 0 && (
+                <div className="flex justify-between text-garden-700">
+                  <dt>Discount</dt>
+                  <dd>
+                    <BrandPrice amount={-Number(quote.discount)} size="sm" tone="ink" />
+                  </dd>
+                </div>
+              )}
+              <hr className="border-bamboo-200" />
+              <div className="flex items-baseline justify-between">
+                <dt className="font-display text-base text-bamboo-900">Total</dt>
+                <dd>
+                  <BrandPrice amount={quote?.total ?? 0} size="lg" />
+                </dd>
+              </div>
+            </dl>
+
+            <Link to="/checkout" className="btn-primary mt-6 w-full">
+              Proceed to checkout <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+            <Link to="/menu" className="btn-secondary mt-2 w-full">
+              Keep browsing
+            </Link>
+
+            <p className="mt-5 text-xs leading-relaxed text-bamboo-500">
+              Totals are calculated by our kitchen from the live menu, so what you see here is
+              exactly what you will be charged.
+            </p>
           </div>
-          <div className="mt-4 p-3 bg-primary-50 rounded-xl">
-            <p className="text-sm text-primary-700">Use code <span className="font-bold">WELCOME10</span> for 10% off!</p>
-          </div>
-          <Link to="/checkout" className="btn-primary w-full mt-4 flex items-center justify-center gap-2">
-            Proceed to Checkout <ArrowRight size={16} />
-          </Link>
-          <Link to="/menu" className="btn-secondary w-full mt-2 text-center block">Continue Shopping</Link>
-        </div>
+        </aside>
       </div>
     </div>
   );

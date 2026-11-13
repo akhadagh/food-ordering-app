@@ -1,51 +1,107 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { cartAPI, apiErrorMessage } from '../services/api';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
 
+/**
+ * The shopping cart.
+ *
+ * The cart lives on the server, so it survives a device change and every
+ * price in it is the server's own calculation (audit findings P1-10, P2-14).
+ * The browser only mirrors the last response for instant rendering.
+ */
 export const CartProvider = ({ children }) => {
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem('cart');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const { user } = useAuth();
+  const [cart, setCart] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await cartAPI.get();
+      setCart(data);
+      setError(null);
+      return data;
+    } catch (err) {
+      setError(apiErrorMessage(err, 'We could not load your cart.'));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(items));
-  }, [items]);
+    load();
+  }, [load]);
 
-  const addItem = (item, quantity = 1, customOptions = [], specialInstructions = '') => {
-    const existingIndex = items.findIndex(
-      (i) => i.id === item.id && JSON.stringify(i.customOptions) === JSON.stringify(customOptions)
-    );
+  /**
+   * The cart is owned by the server, and which cart that is depends on the
+   * session: a guest cart and a signed-in customer's cart are different
+   * records. When the customer signs in the guest cart is merged into theirs,
+   * so the cart is re-read - otherwise the browser would keep showing the
+   * guest's copy of it.
+   */
+  const sessionId = user?.id ?? null;
+  const loadedSession = useRef(sessionId);
+  useEffect(() => {
+    if (loadedSession.current === sessionId) return;
+    loadedSession.current = sessionId;
+    setLoading(true);
+    load();
+  }, [sessionId, load]);
 
-    if (existingIndex >= 0) {
-      const updated = [...items];
-      updated[existingIndex].quantity += quantity;
-      setItems(updated);
-    } else {
-      setItems([...items, { ...item, quantity, customOptions, specialInstructions, cartId: Date.now() }]);
-    }
-    toast.success(`${item.name} added to cart`);
+  const addItem = async ({ menuItemId, quantity = 1, customOptions = [], specialInstructions = '' }) => {
+    const { data } = await cartAPI.addItem({
+      menuItemId,
+      quantity,
+      customOptions,
+      specialInstructions,
+    });
+    await load();
+    return data;
   };
 
-  const removeItem = (cartId) => {
-    setItems(items.filter((i) => i.cartId !== cartId));
-    toast.success('Item removed from cart');
+  const updateQuantity = async (id, quantity) => {
+    await cartAPI.updateItem(id, quantity);
+    await load();
   };
 
-  const updateQuantity = (cartId, quantity) => {
-    if (quantity <= 0) return removeItem(cartId);
-    setItems(items.map((i) => (i.cartId === cartId ? { ...i, quantity } : i)));
+  const removeItem = async (id) => {
+    await cartAPI.removeItem(id);
+    await load();
   };
 
-  const clearCart = () => setItems([]);
+  const clear = async () => {
+    await cartAPI.clear();
+    await load();
+  };
 
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = items.length > 0 ? 5.00 : 0;
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const items = cart?.items || [];
+  const quote = cart?.quote || null;
+
+  const totalItems = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, subtotal, deliveryFee, totalItems }}>
+    <CartContext.Provider
+      value={{
+        cart,
+        items,
+        quote,
+        loading,
+        error,
+        reload: load,
+        addItem,
+        updateQuantity,
+        removeItem,
+        clear,
+        totalItems,
+        subtotal: quote ? Number(quote.subtotal) : 0,
+        deliveryFee: quote ? Number(quote.delivery_fee) : 0,
+        discount: quote ? Number(quote.discount) : 0,
+        total: quote ? Number(quote.total) : 0,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );
@@ -56,3 +112,5 @@ export const useCart = () => {
   if (!context) throw new Error('useCart must be used within CartProvider');
   return context;
 };
+
+export default CartContext;

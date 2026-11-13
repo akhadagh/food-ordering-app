@@ -55,6 +55,35 @@ export const errorHandler = (err, req, res, _next) => {
     });
   }
 
+  // A malformed JSON body is the client's mistake, not a server failure.
+  // Without this the raw SyntaxError reached the generic handler and the
+  // client received a 500 for a body it simply got wrong.
+  if (err && err.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      error: { code: 'invalid_json', message: 'That request body could not be read.' },
+    });
+  }
+
+  // A unique-constraint violation means the record already exists. That is
+  // a normal outcome of a well-formed request, not a server fault.
+  if (err && err.code === '23505') {
+    return res.status(409).json({
+      error: { code: 'conflict', message: 'That already exists.' },
+    });
+  }
+
+  // An upload that is too large or the wrong type is refused by multer
+  // before the route runs.
+  if (err && err.name === 'MulterError') {
+    const tooLarge = err.code === 'LIMIT_FILE_SIZE';
+    return res.status(tooLarge ? 413 : 400).json({
+      error: {
+        code: tooLarge ? 'payload_too_large' : 'invalid_upload',
+        message: tooLarge ? 'That image is too large.' : 'That file could not be accepted.',
+      },
+    });
+  }
+
   if (err && err.code === 'ECONNREFUSED') {
     logger.error('database.unreachable', { requestId, message: err.message });
     return res.status(503).json({

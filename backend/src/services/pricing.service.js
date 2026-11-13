@@ -17,7 +17,7 @@ export async function loadPricedItems(client, menuItemIds) {
   if (!ids.length) return new Map();
 
   const { rows } = await client.query(
-    `SELECT id, name, slug, price, is_available, stock_quantity, custom_options
+    `SELECT id, name, slug, price, image_url, is_available, stock_quantity, custom_options
        FROM menu_items
       WHERE id = ANY($1::int[])`,
     [ids]
@@ -147,6 +147,7 @@ export async function priceCart(client, lines, { promoCode = null } = {}) {
     priced.push({
       menuItemId,
       name: menuItem.name,
+      image_url: menuItem.image_url,
       basePrice: toDecimal(toMinor(menuItem.price)),
       unitPrice: toDecimal(unitMinor),
       quantity,
@@ -203,7 +204,10 @@ export async function resolvePromo(client, code, subtotalMinor) {
 
   let discountMinor =
     promo.discount_type === 'percentage'
-      ? applyPercentage(subtotalMinor, toMinor(promo.discount_value))
+      ? // A percentage is a percentage, not a money amount: passing it
+        // through the minor-unit conversion turned a 10% code into a 100%
+        // code, which took the whole meal off the bill.
+        applyPercentage(subtotalMinor, Number(promo.discount_value))
       : toMinor(promo.discount_value);
 
   if (promo.max_discount !== null) {
@@ -229,6 +233,7 @@ export async function buildQuote(client, lines, { promoCode = null } = {}) {
     items: priced.map((l) => ({
       menu_item_id: l.menuItemId,
       name: l.name,
+      image_url: l.image_url,
       quantity: l.quantity,
       unit_price: l.unitPrice,
       line_total: l.lineTotal,

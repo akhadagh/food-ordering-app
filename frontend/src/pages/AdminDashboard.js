@@ -1,62 +1,189 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { adminAPI } from '../services/api';
-import { ShoppingCart, Users, DollarSign, Package, TrendingUp, Clock, ChevronRight } from 'lucide-react';
+import { BrandCard, BrandErrorState, BrandLoader, PageMeta } from '../components/brand';
+import {
+  ShoppingCart,
+  Users,
+  DollarSign,
+  Package,
+  TrendingUp,
+  Clock,
+  ChevronRight,
+  ChefHat,
+  ShoppingBag,
+  Truck,
+  Banknote,
+} from 'lucide-react';
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin', 'dashboard'],
+    queryFn: async () => (await adminAPI.getDashboard()).data,
+    staleTime: 30 * 1000,
+  });
 
-  useEffect(() => {
-    adminAPI.getDashboard().then(r => { setStats(r.data); setLoading(false); });
-  }, []);
+  if (isLoading) {
+    return (
+      <div className="page-container">
+        <BrandLoader label="Loading your dashboard…" />
+      </div>
+    );
+  }
 
-  if (loading) return <div className="page-container text-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div></div>;
+  if (isError || !stats) {
+    return (
+      <div className="page-container">
+        <BrandErrorState
+          title="We could not load the dashboard"
+          description="Please check your connection and try again."
+          actionLabel="Try again"
+          onAction={refetch}
+        />
+      </div>
+    );
+  }
+
+  const money = (value) =>
+    `GH₵ ${Number(value || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
   const cards = [
-    { title: 'Total Revenue', value: `GH₵${stats.totalRevenue.toFixed(2)}`, icon: <DollarSign size={22} />, color: 'bg-green-500', link: '/admin/sales' },
-    { title: "Today's Revenue", value: `GH₵${stats.todayRevenue.toFixed(2)}`, icon: <TrendingUp size={22} />, color: 'bg-blue-500', link: '/admin/sales' },
-    { title: 'Total Orders', value: stats.totalOrders, icon: <ShoppingCart size={22} />, color: 'bg-primary-500', link: '/admin/orders' },
-    { title: 'Pending Orders', value: stats.pendingOrders, icon: <Clock size={22} />, color: 'bg-yellow-500', link: '/admin/orders' },
-    { title: 'Preparing', value: stats.preparingOrders, icon: <Package size={22} />, color: 'bg-orange-500', link: '/admin/orders' },
-    { title: 'Total Users', value: stats.totalUsers, icon: <Users size={22} />, color: 'bg-purple-500' },
+    {
+      title: 'Revenue booked',
+      value: money(stats.totalRevenue),
+      hint: `${money(stats.collectedRevenue)} collected`,
+      icon: <DollarSign size={20} aria-hidden="true" />,
+      color: 'bg-garden-500',
+      to: '/admin/sales',
+    },
+    {
+      title: "Today's revenue",
+      value: money(stats.todayRevenue),
+      hint: `${money(stats.outstandingRevenue)} outstanding`,
+      icon: <TrendingUp size={20} aria-hidden="true" />,
+      color: 'bg-bamboo-600',
+      to: '/admin/sales',
+    },
+    {
+      title: 'Total orders',
+      value: stats.totalOrders,
+      hint: `${stats.cancelledOrders} cancelled`,
+      icon: <ShoppingCart size={20} aria-hidden="true" />,
+      color: 'bg-primary-500',
+      to: '/admin/orders',
+    },
+    {
+      title: 'New orders',
+      value: stats.pendingOrders,
+      hint: 'Waiting for confirmation',
+      icon: <Clock size={20} aria-hidden="true" />,
+      color: 'bg-gold-500',
+      to: '/admin/orders',
+    },
+    {
+      title: 'In the kitchen',
+      value: stats.preparingOrders + stats.readyOrders,
+      hint: `${stats.preparingOrders} preparing · ${stats.readyOrders} ready`,
+      icon: <ChefHat size={20} aria-hidden="true" />,
+      color: 'bg-clay-500',
+      to: '/admin/orders',
+    },
+    {
+      title: 'On the road',
+      value: stats.outForDeliveryOrders,
+      hint: `${stats.deliveredOrders} delivered`,
+      icon: <Truck size={20} aria-hidden="true" />,
+      color: 'bg-bamboo-700',
+      to: '/admin/orders',
+    },
+    {
+      title: 'Customers',
+      value: stats.totalUsers,
+      hint: `${stats.totalCustomers} customer accounts`,
+      icon: <Users size={20} aria-hidden="true" />,
+      color: 'bg-bamboo-500',
+      to: '/admin/users',
+    },
+    {
+      title: 'Menu items',
+      value: stats.totalMenuItems,
+      hint: `${stats.availableMenuItems} available`,
+      icon: <Package size={20} aria-hidden="true" />,
+      color: 'bg-primary-600',
+      to: '/admin/menu',
+    },
   ];
 
   const links = [
-    { title: 'Manage Orders', desc: 'View and update order statuses', to: '/admin/orders', icon: '📋' },
-    { title: 'Manage Menu', desc: 'Add, edit or remove menu items', to: '/admin/menu', icon: '🍽️' },
-    { title: 'Sales & Reports', desc: 'Download sales data and analytics', to: '/admin/sales', icon: '📊' },
-    { title: 'Promo Codes', desc: 'Create and manage discount codes', to: '/admin/promos', icon: '🏷️' },
+    {
+      title: 'Manage orders',
+      desc: 'See incoming orders and move them through the kitchen.',
+      to: '/admin/orders',
+      icon: <ShoppingCart size={22} aria-hidden="true" />,
+    },
+    {
+      title: 'Manage menu',
+      desc: 'Add, edit and retire dishes, categories and photos.',
+      to: '/admin/menu',
+      icon: <ShoppingBag size={22} aria-hidden="true" />,
+    },
+    {
+      title: 'Sales & reports',
+      desc: 'Revenue, popular dishes and a CSV export.',
+      to: '/admin/sales',
+      icon: <TrendingUp size={22} aria-hidden="true" />,
+    },
+    {
+      title: 'Promo codes',
+      desc: 'Create discounts that the checkout actually honours.',
+      to: '/admin/promos',
+      icon: <Banknote size={22} aria-hidden="true" />,
+    },
   ];
 
   return (
     <div className="page-container">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-500 mt-1">Welcome back! Here's your restaurant overview</p>
-        </div>
-      </div>
+      <PageMeta title="Admin dashboard" path="/admin" />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        {cards.map((c, i) => (
-          <Link key={i} to={c.link || '#'} className="card p-5 hover:shadow-md transition group">
-            <div className={`w-10 h-10 ${c.color} rounded-xl flex items-center justify-center text-white mb-3`}>{c.icon}</div>
-            <p className="text-sm text-gray-500">{c.title}</p>
-            <p className="text-xl font-bold text-gray-900 mt-1">{c.value}</p>
+      <header className="mb-8">
+        <h1 className="font-display text-display-md text-bamboo-900">Dashboard</h1>
+        <p className="mt-1 text-bamboo-600">Here is how Afia Food Hub is doing right now.</p>
+      </header>
+
+      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+        {cards.map((card) => (
+          <Link
+            key={card.title}
+            to={card.to}
+            className="card-interactive p-5"
+          >
+            <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-control text-white ${card.color}`}>
+              {card.icon}
+            </div>
+            <p className="text-xs font-medium uppercase tracking-wide text-bamboo-500">{card.title}</p>
+            <p className="mt-1 font-display text-xl text-bamboo-900">{card.value}</p>
+            <p className="mt-1 text-xs text-bamboo-500">{card.hint}</p>
           </Link>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {links.map((l, i) => (
-          <Link key={i} to={l.to} className="card p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
-            <div className="text-4xl mb-3">{l.icon}</div>
-            <h3 className="font-semibold text-gray-900 group-hover:text-primary-500 transition">{l.title}</h3>
-            <p className="text-sm text-gray-500 mt-1">{l.desc}</p>
-            <div className="flex items-center gap-1 text-primary-500 text-sm font-medium mt-3 group-hover:gap-2 transition-all">
-              Open <ChevronRight size={16} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {links.map((link) => (
+          <Link key={link.to} to={link.to} className="card-interactive group p-6">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-control bg-clay-50 text-primary-600 transition-colors group-hover:bg-primary-500 group-hover:text-white">
+              {link.icon}
             </div>
+            <h2 className="font-display text-base text-bamboo-900 transition-colors group-hover:text-primary-600">
+              {link.title}
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-bamboo-600">{link.desc}</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-600">
+              Open <ChevronRight size={15} aria-hidden="true" />
+            </span>
           </Link>
         ))}
       </div>

@@ -88,17 +88,22 @@ async function menuAnswer(text) {
   const sample = available.slice(0, 6).map((r) => `${r.name} (GH₵ ${Number(r.price).toFixed(2)})`);
   return `Right now we have ${available.length} dish${available.length === 1 ? '' : 'es'} available, including:\n${sample.join('\n')}\n\nAsk me about any dish and I'll give you the full price and details.`;
 }
-
 async function availabilityAnswer(text) {
   const lower = text.toLowerCase();
-  const { rows } = await query(
-    `SELECT name, price, is_available FROM menu_items WHERE lower(name) LIKE $1`,
-    [`%${lower.replace(/[^a-z]/g, '').slice(0, 40)}%`]
+
+  // The question is a sentence, not a dish name: "is sobolo available?" has
+  // to be matched against the dishes on the menu, not searched for whole.
+  const { rows } = await query('SELECT name, price, is_available FROM menu_items ORDER BY name');
+
+  const named = rows.filter(
+    (r) => r.name && (lower.includes(r.name.toLowerCase()) || lower.includes(r.name.toLowerCase().split(' ')[0]))
   );
-  if (!rows.length) {
+
+  if (!named.length) {
     return 'I could not find that dish on the menu. What is it called?';
   }
-  const item = rows[0];
+
+  const item = named[0];
   return item.is_available
     ? `Yes — ${item.name} is available right now at GH₵ ${Number(item.price).toFixed(2)}.`
     : `Unfortunately ${item.name} is sold out right now. ${BUSINESS.contactLine()}`;
@@ -241,8 +246,14 @@ export async function answer(text, user = null) {
   if (match(lower, 'help', 'what can you do', 'what do you do')) return FAQ.help;
 
   // Facts the assistant is allowed to reason over.
+  // The category lives on `categories`, not on `menu_items`, so the tables
+  // have to be joined - selecting it from `menu_items` made every question
+  // that reached this point fail with a database error.
   const { rows: menu } = await query(
-    `SELECT name, price, is_available, description, category FROM menu_items ORDER BY name`
+    `SELECT mi.name, mi.price, mi.is_available, mi.description, c.name AS category
+       FROM menu_items mi
+       LEFT JOIN categories c ON c.id = mi.category_id
+      ORDER BY mi.name`
   );
   const context = {
     menu: menu.slice(0, 60),

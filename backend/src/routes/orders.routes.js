@@ -9,15 +9,25 @@ import * as promo from '../services/promo.service.js';
 import * as payment from '../services/payment.service.js';
 import { buildQuote } from '../services/pricing.service.js';
 import { query } from '../config/db.js';
+import { guestCartToken } from '../middleware/cart.js';
 
 const router = Router();
 
-const cartLineSchema = z.object({
-  menuItemId: field.id(),
-  quantity: field.positiveInt(),
-  customOptions: z.array(z.record(z.any())).max(20).optional(),
-  specialInstructions: z.string().trim().max(500).optional(),
-});
+/**
+ * A cart line.
+ *
+ * The schema is strict: a client cannot attach a price, a name or a
+ * discount to a line. The server prices every line from the menu table, so
+ * a field the API does not understand has no business being here.
+ */
+const cartLineSchema = z
+  .object({
+    menuItemId: field.id(),
+    quantity: field.positiveInt(),
+    customOptions: z.array(z.record(z.any())).max(20).optional(),
+    specialInstructions: z.string().trim().max(500).optional(),
+  })
+  .strict();
 
 /* --------------------------------------------------------------- quotes -- */
 
@@ -51,54 +61,47 @@ router.post('/validate-promo', optionalAuth, validate({ body: z.object({ code: z
 
 /* ----------------------------------------------------------------- cart -- */
 
-router.get('/cart', optionalAuth, async (req, res, next) => {
+router.get('/cart', optionalAuth, guestCartToken, async (req, res, next) => {
   try {
-    const result = await cart.getCart({ user: req.user, guestToken: req.cookies?.[cart.GUEST_COOKIE] });
-    if (result.guestToken && !req.cookies?.[cart.GUEST_COOKIE]) {
-      res.cookie(cart.GUEST_COOKIE, result.guestToken, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.COOKIE_SECURE === 'true',
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-        path: '/',
-      });
-    }
+    // The guest token is issued by the guestCartToken middleware on every
+    // cart request, so a guest cart is always reachable afterwards.
+    const result = await cart.getCart({ user: req.user, guestToken: req.guestCartToken });
     res.json(result);
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/cart/items', optionalAuth, writeLimiter, validate({ body: z.object({ menuItemId: field.id(), quantity: field.positiveInt().optional(), customOptions: z.array(z.record(z.any())).max(20).optional(), specialInstructions: z.string().trim().max(500).optional() }).strict() }), async (req, res, next) => {
+router.post('/cart/items', optionalAuth, guestCartToken, writeLimiter, validate({ body: z.object({ menuItemId: field.id(), quantity: field.positiveInt().optional(), customOptions: z.array(z.record(z.any())).max(20).optional(), specialInstructions: z.string().trim().max(500).optional() }).strict() }), async (req, res, next) => {
   try {
-    await cart.addToCart({ user: req.user, guestToken: req.cookies?.[cart.GUEST_COOKIE] }, req.body);
+    await cart.addToCart({ user: req.user, guestToken: req.guestCartToken }, req.body);
     res.status(201).json({ message: 'Added to cart.' });
   } catch (err) {
     next(err);
   }
 });
 
-router.put('/cart/items/:id', optionalAuth, writeLimiter, validate({ params: z.object({ id: field.id() }), body: z.object({ quantity: z.coerce.number().int().min(0).max(99) }).strict() }), async (req, res, next) => {
+router.put('/cart/items/:id', optionalAuth, guestCartToken, writeLimiter, validate({ params: z.object({ id: field.id() }), body: z.object({ quantity: z.coerce.number().int().min(0).max(99) }).strict() }), async (req, res, next) => {
   try {
-    await cart.updateCartItem({ user: req.user, guestToken: req.cookies?.[cart.GUEST_COOKIE] }, req.params.id, req.body);
+    await cart.updateCartItem({ user: req.user, guestToken: req.guestCartToken }, req.params.id, req.body);
     res.json({ message: 'Cart updated.' });
   } catch (err) {
     next(err);
   }
 });
 
-router.delete('/cart/items/:id', optionalAuth, writeLimiter, validate({ params: z.object({ id: field.id() }) }), async (req, res, next) => {
+router.delete('/cart/items/:id', optionalAuth, guestCartToken, writeLimiter, validate({ params: z.object({ id: field.id() }) }), async (req, res, next) => {
   try {
-    await cart.removeCartItem({ user: req.user, guestToken: req.cookies?.[cart.GUEST_COOKIE] }, req.params.id);
+    await cart.removeCartItem({ user: req.user, guestToken: req.guestCartToken }, req.params.id);
     res.json({ message: 'Item removed.' });
   } catch (err) {
     next(err);
   }
 });
 
-router.delete('/cart', optionalAuth, writeLimiter, async (req, res, next) => {
+router.delete('/cart', optionalAuth, guestCartToken, writeLimiter, async (req, res, next) => {
   try {
-    await cart.clearCart({ user: req.user, guestToken: req.cookies?.[cart.GUEST_COOKIE] });
+    await cart.clearCart({ user: req.user, guestToken: req.guestCartToken });
     res.json({ message: 'Cart cleared.' });
   } catch (err) {
     next(err);

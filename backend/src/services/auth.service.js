@@ -1,6 +1,7 @@
-import bcrypt from 'bcryptjs';
+import { hashPassword, verifyPassword, needsRehash, dummyHashValue } from '../utils/password.js';
 import { query, withTransaction } from '../config/db.js';
 import { env } from '../config/env.js';
+import crypto from 'node:crypto';
 import { badRequest, unauthorized, conflict, notFound, tooManyRequests } from '../utils/errors.js';
 import {
   signAccessToken,
@@ -127,7 +128,7 @@ export async function register({ name, email, password, phone, address }) {
     throw conflict('An account with that email already exists.');
   }
 
-  const hash = await bcrypt.hash(validPassword, env.bcryptRounds);
+  const hash = await hashPassword(validPassword);
   const { rows } = await query(
     `INSERT INTO users (name, email, phone, address, role, password_hash)
      VALUES ($1, $2, $3, $4, 'customer', $5)
@@ -152,10 +153,10 @@ export async function authenticate({ email, password, ip }) {
   );
   const user = rows[0];
 
-  // Compare against a dummy hash when the user does not exist so the
+  // Compare against a dummy hash when the account does not exist, so the
   // response time does not reveal whether the email is registered.
-  const hash = user ? user.password_hash : '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidiu';
-  const ok = await bcrypt.compare(String(password || ''), hash);
+  const hash = user ? user.password_hash : await dummyHashValue();
+  const ok = await verifyPassword(password, hash);
 
   if (!user || !ok) {
     await recordAttempt(cleanEmail, ip, false);
@@ -163,6 +164,12 @@ export async function authenticate({ email, password, ip }) {
   }
   if (!user.is_active) {
     throw unauthorized('This account has been deactivated. Contact support.');
+  }
+
+  // A hash migrated from the previous backend is upgraded transparently.
+  if (needsRehash(user.password_hash)) {
+    const upgraded = await hashPassword(password);
+    await query('UPDATE users SET password_hash = $2 WHERE id = $1', [user.id, upgraded]);
   }
 
   await recordAttempt(cleanEmail, ip, true);
@@ -208,11 +215,11 @@ export async function changePassword(userId, { currentPassword, newPassword }) {
   const { rows } = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
   if (!rows[0]) throw notFound('User not found.');
 
-  const ok = await bcrypt.compare(String(currentPassword || ''), rows[0].password_hash);
+  const ok = await verifyPassword(currentPassword, rows[0].password_hash);
   if (!ok) throw badRequest('Your current password is incorrect.');
 
   const valid = validatePassword(newPassword);
-  const hash = await bcrypt.hash(valid, env.bcryptRounds);
+  const hash = await hashPassword(valid);
   await query('UPDATE users SET password_hash = $2 WHERE id = $1', [userId, hash]);
 }
 
@@ -254,32 +261,43 @@ export async function rotateRefreshToken(token) {
  * Password reset
  * ------------------------------------------------------------------ */
 
+/**
+ * The digest stored for a single-use token.
+ *
+ * The token is 32 bytes of cryptographic randomness, so it cannot be guessed
+ * and does not need bcrypt's brute-force resistance. It DOES need a
+ * DETERMINISTIC digest: bcrypt salts every hash, so the digest written when
+ * the token was created could never be matched again when the customer came
+ * back with the link - the reset flow could not complete.
+ */
+export function hashAuthToken(token) {
+  return crypto.createHash('sha256').update(String(token || '')).digest('hex');
+}
+
 export async function createPasswordResetToken(email) {
   const cleanEmail = normaliseEmail(email);
   const { rows } = await query('SELECT id FROM users WHERE lower(email) = $1', [cleanEmail]);
   if (!rows[0]) return null; // Do not reveal whether the address exists.
 
   const token = randomToken();
-  const hash = await bcrypt.hash(token, 10);
   await query(
     `INSERT INTO auth_tokens (user_id, token_hash, purpose, expires_at)
      VALUES ($1, $2, 'reset_password', now() + interval '1 hour')`,
-    [rows[0].id, hash]
+    [rows[0].id, hashAuthToken(token)]
   );
   return { userId: rows[0].id, token };
 }
 
 export async function resetPasswordWithToken(token, newPassword) {
-  const hash = await bcrypt.hash(String(token || ''), 10);
   const { rows } = await query(
     `SELECT id, user_id FROM auth_tokens
       WHERE token_hash = $1 AND purpose = 'reset_password' AND used_at IS NULL AND expires_at > now()`,
-    [hash]
+    [hashAuthToken(token)]
   );
   if (!rows[0]) throw badRequest('That reset link is invalid or has expired.');
 
   const valid = validatePassword(newPassword);
-  const newHash = await bcrypt.hash(valid, env.bcryptRounds);
+  const newHash = await hashPassword(valid);
 
   await withTransaction(async (client) => {
     await client.query('UPDATE users SET password_hash = $2 WHERE id = $1', [rows[0].user_id, newHash]);

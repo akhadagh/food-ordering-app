@@ -1,121 +1,381 @@
-import React, { useState, useEffect } from 'react';
-import { promoAPI } from '../services/api';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { promoAPI, apiErrorMessage } from '../services/api';
+import { BrandBadge, BrandErrorState, BrandLoader, PageMeta } from '../components/brand';
 import { Plus, Edit2, Trash2, X, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const emptyForm = {
+  code: '',
+  discount_type: 'percentage',
+  discount_value: '',
+  min_order: '',
+  max_discount: '',
+  max_uses: '',
+  is_active: true,
+  expires_at: '',
+};
+
 const AdminPromos = () => {
-  const [promos, setPromos] = useState([]);
+  const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editPromo, setEditPromo] = useState(null);
-  const [form, setForm] = useState({ code: '', discount_type: 'percentage', discount_value: '', min_order: '', max_uses: '', expires_at: '' });
-  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => { loadPromos(); }, []);
+  const { data: promos = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin', 'promos'],
+    queryFn: async () => (await promoAPI.getAll()).data,
+  });
 
-  const loadPromos = async () => {
-    try { const res = await promoAPI.getAll(); setPromos(res.data); } catch (err) { console.error(err); }
-    setLoading(false);
+  const openAdd = () => {
+    setEditPromo(null);
+    setForm(emptyForm);
+    setShowModal(true);
   };
 
-  const openAdd = () => { setEditPromo(null); setForm({ code: '', discount_type: 'percentage', discount_value: '', min_order: '', max_uses: '', expires_at: '' }); setShowModal(true); };
-  const openEdit = (p) => { setEditPromo(p); setForm({ code: p.code, discount_type: p.discount_type, discount_value: p.discount_value, min_order: p.min_order || '', max_uses: p.max_uses || '', expires_at: p.expires_at ? p.expires_at.split('T')[0] : '' }); setShowModal(true); };
+  const openEdit = (promo) => {
+    setEditPromo(promo);
+    setForm({
+      code: promo.code || '',
+      discount_type: promo.discount_type || 'percentage',
+      discount_value: String(promo.discount_value ?? ''),
+      min_order: promo.min_order ? String(promo.min_order) : '',
+      max_discount: promo.max_discount ? String(promo.max_discount) : '',
+      max_uses: promo.max_uses ? String(promo.max_uses) : '',
+      is_active: Boolean(promo.is_active),
+      expires_at: promo.expires_at ? String(promo.expires_at).slice(0, 10) : '',
+    });
+    setShowModal(true);
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
     try {
-      const data = { ...form, discount_value: parseFloat(form.discount_value), min_order: form.min_order ? parseFloat(form.min_order) : 0, max_uses: form.max_uses ? parseInt(form.max_uses) : null, expires_at: form.expires_at || null };
-      if (editPromo) { await promoAPI.update(editPromo.id, data); toast.success('Promo updated!'); }
-      else { await promoAPI.create(data); toast.success('Promo created!'); }
+      const payload = {
+        code: form.code.trim().toUpperCase(),
+        discountType: form.discount_type,
+        discountValue: Number(form.discount_value),
+        minOrder: Number(form.min_order) || 0,
+        maxDiscount: form.max_discount ? Number(form.max_discount) : undefined,
+        maxUses: form.max_uses ? Number(form.max_uses) : undefined,
+        isActive: form.is_active,
+        expiresAt: form.expires_at ? new Date(form.expires_at).toISOString() : undefined,
+      };
+
+      if (editPromo) await promoAPI.update(editPromo.id, payload);
+      else await promoAPI.create(payload);
+
+      toast.success(editPromo ? 'Promo code updated' : 'Promo code created');
       setShowModal(false);
-      loadPromos();
-    } catch (err) { toast.error('Operation failed'); }
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'promos'] });
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'We could not save that promo code.'));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this promo code?')) return;
-    try { await promoAPI.delete(id); toast.success('Deleted'); loadPromos(); } catch (err) { toast.error('Failed'); }
+  const handleDelete = async (promo) => {
+    if (!window.confirm(`Delete the promo code "${promo.code}"?`)) return;
+    try {
+      await promoAPI.delete(promo.id);
+      toast.success('Promo code deleted');
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'promos'] });
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'We could not delete that promo code.'));
+    }
   };
 
-  if (loading) return <div className="page-container text-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div></div>;
+  if (isLoading) {
+    return (
+      <div className="page-container">
+        <BrandLoader label="Loading promo codes…" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="page-container">
+        <BrandErrorState
+          title="We could not load the promo codes"
+          description="Please check your connection and try again."
+          actionLabel="Try again"
+          onAction={refetch}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="page-container">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Promo Codes</h1>
-          <p className="text-gray-500 mt-1">{promos.length} promo codes</p>
-        </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2"><Plus size={16} /> Add Promo</button>
-      </div>
+      <PageMeta title="Promo codes" path="/admin/promos" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {promos.map(p => (
-          <div key={p.id} className="card p-5">
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-2">
-                <Tag size={18} className="text-primary-500" />
-                <span className="font-bold text-lg text-gray-900">{p.code}</span>
-              </div>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {p.is_active ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-            <div className="space-y-1 text-sm text-gray-600 mb-4">
-              <p>Discount: {p.discount_type === 'percentage' ? `${p.discount_value}%` : `GH₵${p.discount_value}`}</p>
-              <p>Min. Order: GH₵{parseFloat(p.min_order || 0).toFixed(2)}</p>
-              {p.max_uses && <p>Usage: {p.used_count}/{p.max_uses}</p>}
-              {p.expires_at && <p>Expires: {new Date(p.expires_at).toLocaleDateString()}</p>}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => openEdit(p)} className="btn-secondary text-sm flex-1 flex items-center justify-center gap-1"><Edit2 size={14} /> Edit</button>
-              <button onClick={() => handleDelete(p.id)} className="btn-danger text-sm flex-1 flex items-center justify-center gap-1"><Trash2 size={14} /> Delete</button>
-            </div>
-          </div>
-        ))}
-      </div>
+      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-display-md text-bamboo-900">Promo codes</h1>
+          <p className="mt-1 text-bamboo-600">
+            Only codes created here are accepted at checkout — nothing is advertised that does not
+            exist.
+          </p>
+        </div>
+        <button type="button" onClick={openAdd} className="btn-primary btn-sm">
+          <Plus size={15} aria-hidden="true" /> New promo
+        </button>
+      </header>
+
+      {promos.length === 0 ? (
+        <div className="card p-12 text-center">
+          <Tag size={28} className="mx-auto mb-4 text-bamboo-300" aria-hidden="true" />
+          <h2 className="font-display text-lg text-bamboo-900">No promo codes yet</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-bamboo-600">
+            Create one here and it will work at checkout straight away. Until then the customer
+            checkout shows no discount at all.
+          </p>
+          <button type="button" onClick={openAdd} className="btn-primary mt-6">
+            <Plus size={16} aria-hidden="true" /> Create the first promo
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {promos.map((promo) => {
+            const expired = promo.expires_at && new Date(promo.expires_at).getTime() < Date.now();
+            const usedUp = promo.max_uses !== null && promo.used_count >= promo.max_uses;
+            return (
+              <article key={promo.id} className="card p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Tag size={17} className="text-primary-500" aria-hidden="true" />
+                    <h2 className="font-display text-lg text-bamboo-900">{promo.code}</h2>
+                  </div>
+                  <BrandBadge tone={promo.is_active && !expired && !usedUp ? 'success' : 'danger'}>
+                    {expired ? 'Expired' : usedUp ? 'Used up' : promo.is_active ? 'Active' : 'Inactive'}
+                  </BrandBadge>
+                </div>
+
+                <dl className="mt-4 space-y-1.5 text-sm text-bamboo-600">
+                  <div>
+                    <dt className="inline">Discount: </dt>
+                    <dd className="inline font-medium text-bamboo-900">
+                      {promo.discount_type === 'percentage'
+                        ? `${Number(promo.discount_value)}%`
+                        : `GH₵ ${Number(promo.discount_value).toFixed(2)}`}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline">Minimum order: </dt>
+                    <dd className="inline font-medium text-bamboo-900">
+                      GH₵ {Number(promo.min_order || 0).toFixed(2)}
+                    </dd>
+                  </div>
+                  {promo.max_discount && (
+                    <div>
+                      <dt className="inline">Capped at: </dt>
+                      <dd className="inline font-medium text-bamboo-900">
+                        GH₵ {Number(promo.max_discount).toFixed(2)}
+                      </dd>
+                    </div>
+                  )}
+                  {promo.max_uses && (
+                    <div>
+                      <dt className="inline">Used: </dt>
+                      <dd className="inline font-medium text-bamboo-900">
+                        {promo.used_count}/{promo.max_uses}
+                      </dd>
+                    </div>
+                  )}
+                  {promo.expires_at && (
+                    <div>
+                      <dt className="inline">Expires: </dt>
+                      <dd className="inline font-medium text-bamboo-900">
+                        {new Date(promo.expires_at).toLocaleDateString()}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+
+                <div className="mt-5 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(promo)}
+                    className="btn-secondary btn-sm flex-1"
+                  >
+                    <Edit2 size={14} aria-hidden="true" /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(promo)}
+                    className="btn-danger btn-sm flex-1"
+                  >
+                    <Trash2 size={14} aria-hidden="true" /> Delete
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold">{editPromo ? 'Edit Promo' : 'Add Promo'}</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-bamboo-900/60 p-4 backdrop-blur-sm"
+          onClick={() => setShowModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="promo-modal-title"
+        >
+          <div
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-card-hover"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <h2 id="promo-modal-title" className="font-display text-lg text-bamboo-900">
+                {editPromo ? 'Edit promo code' : 'New promo code'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="rounded-control p-2 text-bamboo-400 transition-colors hover:bg-bamboo-100 hover:text-bamboo-700"
+                aria-label="Close"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
             </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
-                <input type="text" value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} className="input-field" required placeholder="e.g. SUMMER10" />
+                <label htmlFor="promo-code" className="label">
+                  Code
+                </label>
+                <input
+                  id="promo-code"
+                  type="text"
+                  required
+                  minLength={3}
+                  maxLength={32}
+                  placeholder="e.g. AKWAABA20"
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                  className="input-field"
+                />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                  <select value={form.discount_type} onChange={e => setForm({ ...form, discount_type: e.target.value })} className="input-field">
+                  <label htmlFor="promo-type" className="label">
+                    Type
+                  </label>
+                  <select
+                    id="promo-type"
+                    value={form.discount_type}
+                    onChange={(e) => setForm({ ...form, discount_type: e.target.value })}
+                    className="select-field"
+                  >
                     <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed (GH₵)</option>
+                    <option value="fixed">Fixed amount (GH₵)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Value</label>
-                  <input type="number" step="0.01" value={form.discount_value} onChange={e => setForm({ ...form, discount_value: e.target.value })} className="input-field" required />
+                  <label htmlFor="promo-value" className="label">
+                    Value
+                  </label>
+                  <input
+                    id="promo-value"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={form.discount_value}
+                    onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
+                    className="input-field"
+                  />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Min. Order (GH₵)</label>
-                  <input type="number" step="0.01" value={form.min_order} onChange={e => setForm({ ...form, min_order: e.target.value })} className="input-field" />
+                  <label htmlFor="promo-min" className="label">
+                    Minimum order (GH₵)
+                  </label>
+                  <input
+                    id="promo-min"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.min_order}
+                    onChange={(e) => setForm({ ...form, min_order: e.target.value })}
+                    className="input-field"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Uses</label>
-                  <input type="number" value={form.max_uses} onChange={e => setForm({ ...form, max_uses: e.target.value })} className="input-field" />
+                  <label htmlFor="promo-cap" className="label">
+                    Maximum discount (GH₵)
+                  </label>
+                  <input
+                    id="promo-cap"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.max_discount}
+                    onChange={(e) => setForm({ ...form, max_discount: e.target.value })}
+                    className="input-field"
+                  />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-                <input type="date" value={form.expires_at} onChange={e => setForm({ ...form, expires_at: e.target.value })} className="input-field" />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="promo-uses" className="label">
+                    Maximum uses
+                  </label>
+                  <input
+                    id="promo-uses"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="Unlimited"
+                    value={form.max_uses}
+                    onChange={(e) => setForm({ ...form, max_uses: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="promo-expiry" className="label">
+                    Expires
+                  </label>
+                  <input
+                    id="promo-expiry"
+                    type="date"
+                    value={form.expires_at}
+                    onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
               </div>
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancel</button>
-                <button type="submit" className="btn-primary flex-1">{editPromo ? 'Update' : 'Create'}</button>
+
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.is_active}
+                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                  className="h-4 w-4 rounded border-bamboo-300 text-primary-500 focus:ring-primary-500"
+                />
+                <span className="text-sm text-bamboo-700">Active — customers can use this code</span>
+              </label>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving} className="btn-primary flex-1">
+                  {saving ? 'Saving…' : editPromo ? 'Update' : 'Create'}
+                </button>
               </div>
             </form>
           </div>

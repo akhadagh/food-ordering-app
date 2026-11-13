@@ -50,6 +50,7 @@ export const env = {
   databaseUrl: str('DATABASE_URL'),
   databaseUrlDirect: str('DATABASE_URL_DIRECT'),
   databaseSsl: bool('DATABASE_SSL', true),
+  databasePoolMax: num('DATABASE_POOL_MAX', isProd ? 5 : 10),
 
   jwtSecret: str('JWT_SECRET'),
   jwtRefreshSecret: str('JWT_REFRESH_SECRET'),

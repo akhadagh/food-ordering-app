@@ -3,7 +3,7 @@ import { query, withTransaction } from '../config/db.js';
 import { badRequest, notFound } from '../utils/errors.js';
 import { buildQuote } from './pricing.service.js';
 
-const GUEST_COOKIE = 'afia_guest';
+import { GUEST_CART_COOKIE } from '../middleware/cart.js';
 
 /**
  * Server-side cart.
@@ -17,12 +17,12 @@ const GUEST_COOKIE = 'afia_guest';
 async function resolveCartId({ user, guestToken }) {
   if (user?.id) {
     const { rows } = await query('SELECT id FROM carts WHERE user_id = $1', [user.id]);
-    if (rows[0]) return rows[0].id;
+    if (rows[0]) return { id: rows[0].id, guestToken: null };
     const { rows: created } = await query(
       'INSERT INTO carts (user_id) VALUES ($1) RETURNING id',
       [user.id]
     );
-    return created[0].id;
+    return { id: created[0].id, guestToken: null };
   }
 
   const token = guestToken || crypto.randomUUID();
@@ -33,6 +33,62 @@ async function resolveCartId({ user, guestToken }) {
     [token]
   );
   return { id: created[0].id, guestToken: token };
+}
+
+
+/**
+ * Move a guest cart into a signed-in customer's cart.
+ *
+ * A customer who browses as a guest and then creates an account should not
+ * lose what they had put in the cart.
+ */
+export async function mergeGuestCartIntoUser(guestToken, userId) {
+  if (!guestToken) return 0;
+  try {
+    const { rows: guestCarts } = await query('SELECT id FROM carts WHERE guest_token = $1', [
+      guestToken,
+    ]);
+    if (!guestCarts[0]) return 0;
+
+    const { rows: userCarts } = await query('SELECT id FROM carts WHERE user_id = $1', [userId]);
+    let targetCartId;
+    if (userCarts[0]) {
+      targetCartId = userCarts[0].id;
+    } else {
+      const { rows: created } = await query(
+        'INSERT INTO carts (user_id) VALUES ($1) RETURNING id',
+        [userId]
+      );
+      targetCartId = created[0].id;
+    }
+
+    const { rows: items } = await query(
+      'SELECT menu_item_id, quantity, custom_options, special_instructions FROM cart_items WHERE cart_id = $1',
+      [guestCarts[0].id]
+    );
+
+    for (const item of items) {
+      await query(
+        `INSERT INTO cart_items (cart_id, menu_item_id, quantity, custom_options, special_instructions)
+         VALUES ($1, $2, $3, $4::jsonb, $5)`,
+        [
+          targetCartId,
+          item.menu_item_id,
+          item.quantity,
+          JSON.stringify(item.custom_options || []),
+          item.special_instructions,
+        ]
+      );
+    }
+
+    await query('DELETE FROM cart_items WHERE cart_id = $1', [guestCarts[0].id]);
+    await query('DELETE FROM carts WHERE id = $1', [guestCarts[0].id]);
+
+    return items.length;
+  } catch {
+    // A failed merge must never block a sign-in.
+    return 0;
+  }
 }
 
 export async function getCart({ user, guestToken }) {
@@ -52,7 +108,12 @@ export async function getCart({ user, guestToken }) {
   );
 
   const lines = items.map((i) => ({
+    id: i.id,
     menuItemId: i.menu_item_id,
+    name: i.name,
+    image_url: i.image_url,
+    categoryName: i.category_name,
+    isAvailable: i.is_available,
     quantity: i.quantity,
     customOptions: i.custom_options || [],
     specialInstructions: i.special_instructions || '',
@@ -170,5 +231,12 @@ export async function clearCart({ user, guestToken }) {
   await query('DELETE FROM cart_items WHERE cart_id = $1', [resolved.id]);
 }
 
-export { GUEST_COOKIE };
-export default { getCart, addToCart, updateCartItem, removeCartItem, clearCart };
+export { GUEST_CART_COOKIE };
+export default {
+  getCart,
+  addToCart,
+  updateCartItem,
+  removeCartItem,
+  clearCart,
+  mergeGuestCartIntoUser,
+};

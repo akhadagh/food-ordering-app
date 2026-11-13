@@ -18,6 +18,7 @@ Attribution requirements must be honoured wherever these images are published.
 | Fufu with tilapia, meat and light soup.jpg | daSupremo | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Fufu_with_tilapia,_meat_and_light_soup.jpg) |
 | Kenkey (Ghana Food).jpg | Danieljatuat | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Kenkey_(Ghana_Food).jpg) |
 | Ghana light soup and fufu 01.jpg | Umasoyee | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Ghana_light_soup_and_fufu_01.jpg) |
+| Fish jollof rice.jpg | Halima Waziri | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Fish_jollof_rice.jpg) |
 | Food items market Ghana.jpg | Lauren Gardenbelle Fritts | [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0) | [Commons](https://commons.wikimedia.org/wiki/File:Food_items_market_Ghana.jpg) |
 | Market Stall with Display of Smoked Fish.jpg | Uthman salma | [CC0](http://creativecommons.org/publicdomain/zero/1.0/deed.en) | [Commons](https://commons.wikimedia.org/wiki/File:Market_Stall_with_Display_of_Smoked_Fish.jpg) |
 | Jollof rice in Ghana.jpg | Edithobayaa1 | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Jollof_rice_in_Ghana.jpg) |
@@ -27,6 +28,7 @@ Attribution requirements must be honoured wherever these images are published.
 | Different kinds of food in northern Ghana 01.jpg | Sir Amugi | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Different_kinds_of_food_in_northern_Ghana_01.jpg) |
 | Banku 03.jpg | Amuzujoe | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Banku_03.jpg) |
 | Jollof Rice 2.jpg | Fquasie | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Jollof_Rice_2.jpg) |
+| Ghana Jollof Rice with Chicken.jpg | Queen Murja10 | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Ghana_Jollof_Rice_with_Chicken.jpg) |
 | Waakye101.jpg | Xibitgh | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Waakye101.jpg) |
 | Kenkey (Ghana Food).jpg | Danieljatuat | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Kenkey_(Ghana_Food).jpg) |
 | Fufu with light soup and chicken.jpg | Edithobayaa1 | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons](https://commons.wikimedia.org/wiki/File:Fufu_with_light_soup_and_chicken.jpg) |
