@@ -329,3 +329,371 @@ Every failure above maps to a numbered finding in `AUDIT_REPORT.md` §4 and to a
   occurrence removed.
 - A verification that the fabricated payment details and demo credentials are gone.
 - The contrast validation re-run against the live application.
+
+---
+
+# TR-001 — Sprints 4 to 7: menu, cart, checkout, administration and interface
+
+**Report ID:** TR-001
+**Sprint:** 4 – 7 (one body of work)
+**Date:** 2026-11-12
+**Branch:** `feature/afia-food-hub-transformation`
+**Base commit:** `2c1bf60` "Sprint 2 + 3: rebuild the backend in-repo and close the P0/P1 findings"
+
+> **Scope note.** Sprints 1, 2 and 3 were committed without a separate test report; their
+> evidence is in the commit messages and in `scripts/verify-p0-fixes.py`. This report covers
+> the work verified **in this session**: the server-authoritative cart, the checkout and order
+> lifecycle, the administration screens and the interface around them.
+
+---
+
+## 13. Environment
+
+| Item | Value |
+|---|---|
+| OS | Linux (x86_64) |
+| Node.js | v22.23.4 |
+| Database | PostgreSQL 17 through PGlite, exposed on TCP at `127.0.0.1:55432` |
+| API under test | `http://localhost:5000/api` (the rebuilt in-repo backend) |
+| Frontend under test | `http://localhost:3111` (CRA development server) |
+| Browser | Brave 1.x, headless, driven over the DevTools protocol |
+| Live deployment | **Not tested** — the rebuilt backend has not been deployed |
+
+---
+
+## 14. Build and boot verification
+
+| Step | Command | Result |
+|---|---|---|
+| Migrations | `npm run migrate` | ✅ PASS — "Database is up to date", 4 migrations |
+| Seed | `npm run seed` | ✅ PASS — 5 categories, 14 menu items, 1 administrator |
+| API boot | `npm start` | ✅ PASS — listening on `:5000` |
+| API health | `GET /api/health` | ✅ PASS — `{"status":"ok","db":"ok"}` |
+| Frontend dev server | `PORT=3111 npm start` | ✅ PASS — "Compiled successfully", HTTP 200 |
+| Production build | `CI=false npm run build` | ✅ PASS — "Compiled successfully" |
+
+**Production build output:** 113.92 kB main JS (gzip) + 9 lazy chunks (Recharts and the admin
+routes are code-split) + 8.14 kB CSS.
+
+---
+
+## 15. Automated suites executed
+
+| # | Suite | Command | Checks | Result |
+|---|---|---|---|---|
+| 15.1 | P0/P1 security regression | `python3 backend/scripts/verify-p0-fixes.py` | 24 | ✅ **24 passed** |
+| 15.2 | Customer journey | `node frontend/tests/e2e/customer-journey.mjs` | 34 | ✅ **34 passed** |
+| 15.3 | Administration | `node frontend/tests/e2e/admin-journey.mjs` | 28 | ✅ **28 passed** |
+| | **Total** | | **86** | ✅ **86 passed** |
+
+### 15.1 — Security regression (24/24)
+
+Every check from `AUDIT_REPORT.md` that is reproducible against a running API: privilege
+escalation through signup, client-trusted pricing, the order IDOR, multipart upload,
+`is_available` on create, database-backed promo codes, the order-status state machine,
+brute-force throttling and the absence of raw database text in error responses. **All 24 passed
+after the changes recorded in `REPAIR_LOG.md` §7.3.**
+
+### 15.2 — Customer journey (34/34)
+
+| Group | Checks | Result |
+|---|---|---|
+| Homepage | title, meta description, logo, SVG favicon, hero photograph, no fabricated claims | ✅ 6 |
+| Menu | cards render, every dish image loads, prices in cedis, search narrows the menu | ✅ 4 |
+| Cart | options panel opens, the cart shows an item, the cart shows a total | ✅ 3 |
+| Authentication | registration signs the customer in, the profile loads, **the cart survives the sign-up** | ✅ 3 |
+| Checkout | the server total is shown, the order is confirmed, an order number is shown | ✅ 3 |
+| Order tracking | the order can be tracked, the timeline is shown, the order is in "my orders" | ✅ 3 |
+| Administration | sign-in, dashboard, revenue, orders, menu, sales, promos, customers, branded 404 | ✅ 10 |
+| Responsive | no horizontal overflow at 390 px | ✅ 1 |
+| Console | no unexpected console errors, no uncaught exceptions | ✅ 2 |
+
+### 15.3 — Administration (28/28)
+
+| Group | Checks | Result |
+|---|---|---|
+| Sign-in | the administrator is signed in | ✅ 1 |
+| Dashboard | loads, revenue is reported, no fabricated numbers | ✅ 3 |
+| Menu management | the page loads, a dish can be created, its price is served to customers, it can be edited and the new price is served, it can be deleted and is gone | ✅ 8 |
+| Promo codes | a new code is listed, the code is accepted by the checkout, an invented code is refused, the test code is removed again | ✅ 4 |
+| Order management | the page loads, orders are listed, only legal next statuses are offered, illegal transitions are not selectable, a legal change is applied and shown | ✅ 6 |
+| Customers | the page loads, customers are listed | ✅ 2 |
+| Sales export | the CSV downloads with a `text/csv` content type and a header row | ✅ 2 |
+| Console | no console errors, no uncaught exceptions | ✅ 2 |
+
+---
+
+## 16. Defects found by these suites
+
+Eight application defects were found by executing the suites, not by reading the code. Each was
+fixed and the suites re-run.
+
+| # | Defect | Severity | Fix |
+|---|---|---|---|
+| 1 | The cart page rendered nothing — `ReferenceError: cart is not defined` | **High** — a customer could not see their cart | Destructure `cart` from `useCart()` |
+| 2 | Cart lines had no `id`, `name` or `image_url`, so a line could not be updated or removed and the dish name was missing | **High** — the cart and the checkout could not be used | Return those fields on every cart line |
+| 3 | The checkout page crashed — `toFixed is not a function` on a string amount | **High** — the checkout was unusable | Format money with `Number(...)` |
+| 4 | The checkout showed "Your cart is empty" while the cart was loading | Medium | Loader while loading, real error state on failure |
+| 5 | The browser replayed a **cached** API response under a different session — after signing in it could show the previous visitor's cart | **High** — a cross-session data leak | `Cache-Control: no-store` on every `/api` response |
+| 6 | The confirmation asked the customer to have **GH₵ 0.00** ready in cash | **High** — a financial instruction was wrong | Show the total the server recorded on the order |
+| 7 | The confirmation said "Your order #34" while the rest of the app says "Order #34" | Low | Copy made consistent |
+| 8 | The cart route wrote a cookie with no name | Medium | Removed; the middleware issues the guest cookie |
+
+The driver itself had three faults, recorded in `REPAIR_LOG.md` §7.4: it attached to a stale
+browser on a fixed port, it used the input value setter on textareas, and it let
+`window.confirm` block the admin delete flow. All three were fixed before the suites were
+trusted.
+
+---
+
+## 17. Still not testable in this environment
+
+| Item | Why |
+|---|---|
+| The live Render deployment | The rebuilt backend has not been deployed; the live API still runs the old code |
+| Neon pooled and direct connections | No Neon credentials; PostgreSQL 17 via PGlite was used instead |
+| Vercel serverless behaviour, cold starts, SPA refresh | No Vercel project access |
+| Paystack and Hubtel webhooks | No provider credentials; the disabled adapter is the only one exercised |
+| `CI=true` build (lint-as-error) | The build was run with `CI=false`, as in Sprint 0 |
+| `npm audit` vulnerability report | Not run in this session |
+| The backend jest suite | The harness is installed and configured; no test file exists yet (Sprint 8.1) |
+
+---
+
+## 18. Test totals
+
+| Metric | Count |
+|---|---|
+| Tests executed in this report | **86** |
+| ✅ Passed | **86** |
+| ❌ Failed | **0** |
+| Application defects found and fixed | **8** |
+| Test-driver defects found and fixed | **3** |
+
+Cumulative across TR-000 and TR-001: **160** checks executed, **124** passed, **21** failed
+(findings, all closed by Sprints 2 and 3), **8** partial, **7** blocked.
+
+---
+
+# TR-002 — Sprint 8: the test suites, the security checks and the deployment
+
+**Report ID:** TR-002
+**Sprint:** 8 — Testing & production readiness
+**Date:** 2026-11-13
+**Branch:** `feature/afia-food-hub-transformation`
+**Base commit:** `2c1bf60` "Sprint 2 + 3: rebuild the backend in-repo and close the P0/P1 findings"
+
+---
+
+## 19. Summary
+
+| Category | Result |
+|---|---|
+| Backend integration suite | ✅ **PASS** — 236 checks, 12 suites, 39 s |
+| Frontend component and flow suite | ✅ **PASS** — 113 checks, 11 suites, 15 s |
+| Browser journeys (customer, administration) | ✅ **PASS** — 64 checks, 2 suites |
+| Security audit (dependencies, secrets, headers, authorisation matrix) | ✅ **PASS** — 12/12 |
+| Clean-install verification | ✅ **PASS** — install → migrate → seed → start → health |
+| Interface and API agree on the order status transitions | ✅ **PASS** |
+| Vercel deployment configuration | ✅ **Written and checked by a test** — not deployed (no credentials) |
+| Vercel preview deployment and acceptance pass | ⛔ **BLOCKED** — owner credentials |
+
+**Sprint 8 verdict: the application now has an automated safety net, the
+security posture is verified by a repeatable command, and two findings that
+the earlier sprints had left open — **P1-14** and **P1-16** — are closed.**
+
+---
+
+## 20. What was executed
+
+### 20.1 The environment
+
+| Step | Command | Result |
+|---|---|---|
+| Backend install (from an empty `node_modules`) | `rm -rf node_modules && npm ci` | ✅ 314 packages |
+| Backend suite | `npm test` | ✅ **236 passed**, 12 suites |
+| Frontend install (from an empty `node_modules`) | `rm -rf node_modules && npm ci` | ✅ 2 654 packages |
+| Frontend suite | `CI=true npm test` | ✅ **113 passed**, 11 suites |
+| Interface build | `CI=true npm run build` | ✅ "Compiled successfully" — no lint warnings |
+| Every backend suite on its own | `npm test -- tests/api/<file>` | ✅ **12/12 pass in isolation** — no suite depends on the order of the others |
+| Security audit | `node tools/security-audit.mjs --with-tests` | ✅ **12/12 checks** |
+| Clean install | `tools/verify-clean-install.sh` | ✅ **CLEAN INSTALL VERIFIED** |
+| Browser journeys | `tools/verify-browser-journeys.sh` | ✅ **35/35** and **29/29** |
+
+The backend suite starts a **disposable PostgreSQL 17 instance** (PGlite),
+migrates it with the real migration runner, seeds it with the real seed
+script and exercises the real Express application over HTTP. Nothing in it
+touches a developer database, and the instance is destroyed afterwards.
+
+### 20.2 The backend suite
+
+| Suite | Checks | What it covers |
+|---|---|---|
+| `auth.test.js` | 28 | Signup, login, lockout, session, profile, password, reset |
+| `admin.test.js` | 28 | The authorisation matrix, the dashboard, orders, menu, promos, users, the CSV export |
+| `orders.test.js` | 32 | The order lifecycle, ownership, cancellation, the status machine |
+| `menu.test.js` | 27 | Search, filter, pagination, availability, the option structure |
+| `pricing.test.js` | 23 | That the server is the only authority for money |
+| `cart.test.js` | 17 | The guest cart, the customer cart, the merge, the promo codes |
+| `security.test.js` | 15 | Headers, caching, CORS, input rejection, error containment, session isolation |
+| `payments.test.js` | 12 | The disabled provider, the honest "not configured" state, the refunds |
+| `assistant.test.js` | 11 | That the answers come from live data |
+| `upload.test.js` | 8 | The upload hardening |
+| `health.test.js` | 5 | Liveness, readiness, the 404, the request id |
+| `deployment.test.js` | 30 | The deployment contract, the documentation contract, the frontend/API agreement |
+| **Total** | **236** | |
+
+### 20.3 The frontend suite
+
+| Suite | Checks | What it covers |
+|---|---|---|
+| `services/api.test.js` | 17 | The base URL resolution, the error messages, the session interceptor |
+| `context/AuthContext.test.js` | 12 | The profile read, the login, the logout, the session expiry |
+| `context/CartContext.test.js` | 11 | The cart load, the quote, the mutations, the re-read after signing in |
+| `pages/LoginPage.test.js` | 10 | The sign-in, the navigation, the field errors, **no published credential** |
+| `pages/SignupPage.test.js` | 8 | The password rules, the account creation, **no role field** |
+| `pages/CartPage.test.js` | 11 | The lines, the server prices, the empty and error states |
+| `pages/CheckoutPage.test.js` | 15 | The order creation, the amount recorded on the order, **the cart error state** |
+| `components/brand/BrandButton.test.js` | 9 | The variants, the loading state, the link and button forms |
+| `components/brand/BrandEmptyState.test.js` | 8 | The empty state, the error state |
+| `components/brand/BrandPrice.test.js` | 7 | The money formatting, including the numeric column as a string |
+| `config/brand.test.js` | 5 | The order status registry and its transitions |
+| **Total** | **113** | |
+
+### 20.4 The security audit
+
+`node tools/security-audit.mjs --with-tests` — 12 checks, all passing:
+
+| # | Check | Result |
+|---|---|---|
+| 1 | The backend's **production** dependencies | ✅ 0 advisories |
+| 2 | The interface's **production** dependencies | ✅ 0 advisories |
+| 3 | The working tree holds no credential | ✅ |
+| 4 | The whole Git history holds no credential | ✅ |
+| 5 | No `.env` file is tracked | ✅ |
+| 6 | `x-content-type-options: nosniff` | ✅ |
+| 7 | `x-frame-options: SAMEORIGIN` | ✅ |
+| 8 | `content-security-policy: default-src 'self'` | ✅ |
+| 9 | `referrer-policy: strict-origin-when-cross-origin` | ✅ |
+| 10 | `x-powered-by` is not advertised | ✅ |
+| 11 | An API response is never cacheable | ✅ |
+| 12 | The authorisation matrix | ✅ every administration route refuses the wrong role |
+
+**The build-time advisories.** The interface carries 36 advisories (13 high)
+and the backend 6 (0 high) — all of them inside `react-scripts` and its
+dependencies. None of them reaches a browser or the server: the production
+dependency tree of both packages is clean, and the advisory count above is
+reported separately for exactly that reason. Removing them means leaving
+Create React App, which is a larger change than this project warrants now.
+
+### 20.5 The clean install
+
+`tools/verify-clean-install.sh` — a fresh machine, in the order a machine
+would do it:
+
+| Step | Result |
+|---|---|
+| `npm ci` in an empty `backend/` | ✅ |
+| `npm run migrate` | ✅ 4 migrations applied |
+| `npm run seed` | ✅ 5 categories, 14 dishes, 1 administrator |
+| `npm start` | ✅ listening on `:5000` |
+| `GET /api/health` | ✅ `{"status":"ok","db":"ok"}` |
+| `GET /api/menu/items` | ✅ the seeded menu, priced by the server |
+| `GET /api/admin/dashboard` without a session | ✅ `401` |
+
+### 20.6 The browser journeys
+
+`tools/verify-browser-journeys.sh` — a real Brave instance against the
+**production build** served by a static server with the SPA fallback:
+
+| Suite | Checks | Result |
+|---|---|---|
+| The customer journey | 35 | ✅ 35/35 |
+| The administration journey | 29 | ✅ 29/29 |
+
+---
+
+## 21. Defects these suites found
+
+Every one of them was found by running something, not by reading code.
+
+| # | Defect | Severity | Fix |
+|---|---|---|---|
+| 1 | The checkout page's "the cart could not be loaded" branch had been nested **inside** the submit handler, so a cart that failed to load was reported to the customer as **an empty cart** | Medium — a fault was hidden behind a different one | The branch was moved back to the render level; `CheckoutPage.test.js` now covers both states |
+| 2 | The administration screen offered **every later status**, so an administrator could pick one the API refuses and meet an error | Medium | The interface now offers exactly the transitions the API accepts; the two tables are compared by a test |
+| 3 | The frontend test harness **could not run at all** — `TextEncoder is not defined` stopped every suite before the first assertion | High — the suite was a fiction | The encoding and streams globals are polyfilled in `setupTests.js` |
+| 4 | **P1-14** — there was no `vercel.json` at all. The deployment configuration existed only as a paragraph in `DEPLOYMENT.md` | High — refreshing any route on Vercel would 404 | `vercel.json`, the root `api/index.js` and the root manifest were written; a test checks them |
+| 5 | **P1-16** — `backend/README.md` documented the old FoodGH API: Mongo-style ids, `menu_item_id`, `promoCode`, a JWT in `localStorage`, scripts that did not exist | High — any integrator would build against the wrong contract | It was rewritten from the real route table; a test checks it against the API |
+| 6 | The root `README.md` still published the live administrator's address and password (**P0-07**) | Critical | It was rewritten; a test refuses the credential in either file |
+| 7 | `backend/api/index.js` was not a path Vercel builds — only the **root** `api/` directory is | Medium — the deployment would have had no function | The entry point moved to `api/index.js` at the root, and the path prefix is restored by middleware so it works whichever convention the platform uses |
+| 8 | `security.test.js` passed only when another suite had run before it — the dish it ordered depended on the menu another file had installed | Medium — a suite that passes only in a particular order is a suite that will fail in CI | The file installs the fixtures itself; all 12 backend suites now pass on their own |
+
+Defects 2 and 7 were found by the suites; defect 1 by reading the checkout
+page after the interface suite flagged the screen; defects 4, 5 and 6 by the
+final audit re-run (§8.7 of the plan), which is exactly what that task is
+for.
+
+---
+
+## 22. The findings, and where each one is now closed
+
+| Finding | Closed by | Proof |
+|---|---|---|
+| P0-01 | Sprint 2 | `deployment.test.js` — the recovered route table is served |
+| P0-02 | Sprint 3 | `security.test.js`, `SignupPage.test.js` |
+| P0-03 | Sprint 4 | `pricing.test.js` — 23 checks |
+| P0-04 | Sprint 3 | `security.test.js` — session isolation |
+| P0-05 | Sprint 5 | `payments.test.js`, `CheckoutPage.test.js` |
+| P0-06 | Sprint 2 | `security.test.js` — CORS |
+| P0-07 | Sprint 1 + 8 | `deployment.test.js` — no credential is published |
+| P1-01 | Sprint 3 | `auth.test.js` — the lockout |
+| P1-02 | Sprint 3 | `upload.test.js` |
+| P1-03 | Sprint 4 | `menu.test.js` |
+| P1-04 | Sprint 4 | `menu.test.js` — the server-side search |
+| P1-05 | Sprint 3 | `auth.test.js` — the hashing and the policy |
+| P1-06 | Sprint 5 + 8 | `orders.test.js`, `deployment.test.js` — the transitions |
+| P1-07 | Sprint 5 | `payments.test.js` |
+| P1-08 | Sprint 5 | `orders.test.js` — the status history |
+| P1-09 | Sprint 5 | `cart.test.js`, `orders.test.js` — the promo codes |
+| P1-10 | Sprint 4 | `pricing.test.js`, `cart.test.js` |
+| P1-11 | Sprint 5 | `orders.test.js` — the cancellation rules |
+| P1-12 | Sprint 8 | 236 backend checks and 113 interface checks |
+| P1-13 | Sprint 0 + 8 | `deployment.test.js` — the template is committable and holds no secret |
+| P1-14 | **Sprint 8** | `deployment.test.js` — `vercel.json` exists and is complete |
+| P1-15 | Sprint 2 | `api.test.js` — the base URL resolution |
+| P1-16 | **Sprint 8** | `deployment.test.js` — the documentation matches the API |
+
+**All seven P0 findings and all sixteen P1 findings are closed and covered by
+a test that fails against the old behaviour.**
+
+---
+
+## 23. Still not testable in this environment
+
+| Item | Why |
+|---|---|
+| The Vercel preview deployment and the acceptance pass | No Vercel project access. The configuration is written and checked by a test, but **it has not been deployed** — the SPA rewrite and the function path must be confirmed on the first preview deployment |
+| The Neon pooled and direct connections | No Neon credentials. PostgreSQL 17 via PGlite was used instead |
+| The Paystack and Hubtel webhooks | No provider credentials; the disabled adapter is the only one exercised |
+| The live Render deployment | The rebuilt backend has never been deployed; the live API still runs the old code |
+| The owner actions in `AUDIT_REPORT.md` §8 | They need access only the owner has |
+
+---
+
+## 24. Test totals
+
+| Metric | Count |
+|---|---|
+| Backend checks | **236** |
+| Interface checks | **113** |
+| Browser checks | **64** |
+| Security checks | **12** |
+| Clean-install steps | **7** |
+| **Total executed in this report** | **432** |
+| ✅ Passed | **432** |
+| ❌ Failed | **0** |
+| Application defects found and fixed | **8** |
+
+Cumulative across TR-000, TR-001 and TR-002: **592** checks executed, **556**
+passed, **21** failed (findings, all closed by Sprints 2 and 3), **8**
+partial, **7** blocked.

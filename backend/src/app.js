@@ -8,6 +8,7 @@ import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { healthCheck } from './config/db.js';
 import { generalLimiter } from './middleware/rateLimit.js';
+import { apiPrefix } from './middleware/apiPrefix.js';
 import { notFoundHandler, errorHandler } from './middleware/error.js';
 
 import authRoutes from './routes/auth.routes.js';
@@ -18,13 +19,22 @@ import promoRoutes from './routes/promos.routes.js';
 import paymentRoutes from './routes/payments.routes.js';
 import assistantRoutes from './routes/assistant.routes.js';
 
-export function createApp() {
+export function createApp({ restoreApiPrefix = false } = {}) {
   const app = express();
 
   // Vercel and other proxies set X-Forwarded-For; trust it so rate limiting
   // and audit logs see the real client address.
   app.set('trust proxy', env.trustProxy || 1);
   app.disable('x-powered-by');
+
+  /**
+   * When the application is served as a function, the request path may reach
+   * it without the `/api` prefix. Restoring it here means the routes below
+   * are matched the same way in every environment.
+   */
+  if (restoreApiPrefix) {
+    app.use(apiPrefix());
+  }
 
   // Request id - propagated into every log line.
   app.use((req, res, next) => {

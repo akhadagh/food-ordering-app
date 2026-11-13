@@ -26,6 +26,10 @@ Thumbs.db
 backend/.pgdata/
 backend/uploads/
 
+# disposable database and state file used by the backend test suite
+backend/.pgdata-test/
+backend/.test-db.json
+
 # generated brand build artefacts
 .brand-cache/
 __pycache__/

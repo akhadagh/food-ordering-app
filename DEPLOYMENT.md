@@ -19,7 +19,7 @@ not-yet-created files are marked **[Sprint 2+]** and must not be attempted befor
    Browser ────────►│  Vercel — Project: afia-food-hub       │
                     │                                       │
                     │  /api/*  →  Node serverless function  │
-                    │            (backend/api/index.js)     │
+                    │            (api/index.js)             │
                     │  /*      →  CRA static build           │
                     │            (frontend/build)           │
                     └──────────────────┬────────────────────┘
@@ -190,53 +190,88 @@ Or connect the repository at <https://vercel.com/new> and import
 |---|---|
 | Framework preset | Other |
 | Root directory | `.` (repository root) |
-| Build command | `npm run build` (see `vercel.json` below) |
+| Build command | `npm run build --prefix frontend` (set in `vercel.json`) |
 | Output directory | `frontend/build` |
 | Node.js version | 20.x or 22.x |
-| Install command | `npm ci --prefix frontend && npm ci --prefix backend` **[Sprint 2+]** |
+| Install command | `npm ci && npm ci --prefix frontend` (set in `vercel.json`) |
 
-### 4.3 `vercel.json` **[Sprint 2+]**
+### 4.3 `vercel.json`
+
+The file is in the repository root. It is the single source of truth for the
+deployment — the settings in the dashboard are overridden by it.
 
 ```json
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci && npm ci --prefix frontend",
   "buildCommand": "npm run build --prefix frontend",
   "outputDirectory": "frontend/build",
-  "installCommand": "npm ci --prefix frontend && npm ci --prefix backend",
   "functions": {
-    "backend/api/index.js": {
-      "maxDuration": 30,
-      "memory": 1024
-    }
+    "api/index.js": { "maxDuration": 30, "memory": 1024 }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/backend/api/index.js" },
-    { "source": "/((?!api/).*)", "destination": "/frontend/index.html" }
+    { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }]
+    }
   ]
 }
 ```
 
 > **The SPA rewrite is mandatory.** Without it, refreshing `/orders/12` or `/admin/menu` returns a
 > 404 — finding **P1-14**. The negative lookahead keeps `/api/*` from being rewritten to the SPA.
+>
+> The rewrite destination is `/index.html`: `outputDirectory` is the root of the deployment, so the
+> built `index.html` is served at `/`.
+>
+> The `Cache-Control` header repeats what the API already sets. It is here so that a response the
+> platform handles on the edge is never cached either.
 
-### 4.4 Backend as a Vercel function **[Sprint 2+]**
+The configuration is checked by `backend/tests/api/deployment.test.js` — a
+missing rewrite or a drifting function path fails the test suite rather than
+the deployment.
 
-The Express app must be exported, not listened on:
+### 4.4 The API as a Vercel function
+
+Vercel builds every file in the project's root `api/` directory into a
+function and serves it at the path of the file, so `api/index.js` answers
+`/api` and everything under it.
 
 ```js
-// backend/api/index.js
-import app from '../src/app.js';
+// api/index.js
+import { createApp } from '../backend/src/app.js';
+
+const app = createApp({ restoreApiPrefix: true });
+
 export default app;
 ```
 
 ```js
 // backend/src/server.js  — local development only
-import app from './app.js';
+import { createApp } from './app.js';
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`Afia Food Hub API on :${port}`));
 ```
 
 Do **not** call `app.listen()` in the module that Vercel imports.
+
+**Why `restoreApiPrefix`.** The application mounts every route under `/api`.
+A platform may hand a request to the function with the prefix intact
+(`/api/menu/items`) or without it (`/menu/items`). The middleware restores it
+once, before any route is matched, so the routes behave identically in every
+environment. It is idempotent and it is covered by a test.
+
+**The root `package.json`.** Vercel installs the dependencies of the project's
+**root** manifest, so the root `package.json` lists the API's runtime
+dependencies and the root `api/index.js` imports the application from
+`backend/src`. A test asserts the root manifest and `backend/package.json`
+list the same dependencies at the same versions — if they drift, the deployed
+function is not the one the test suite exercised.
 
 ### 4.5 Environment variables
 

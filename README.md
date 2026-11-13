@@ -1,203 +1,171 @@
-# FoodGH - Ghanaian Food Ordering & Delivery Web App
+# Afia Food Hub
 
-A full-stack food ordering and tracking web application featuring authentic Ghanaian local foods with Mobile Money payments and AI chatbot support.
+Food ordering and delivery for Ghana — jollof, banku and okra, fufu and light
+soup, waakye and more, cooked to order and delivered hot.
 
-## Tech Stack
+The application is a React single-page interface and a Node/Express API over
+PostgreSQL. The API owns the money: every price the customer sees is
+calculated by the server from the live menu.
 
-- **Frontend:** React.js, Tailwind CSS, React Router, Recharts
-- **Backend:** Node.js, Express.js
-- **Database:** PostgreSQL
-- **Auth:** JWT (JSON Web Tokens)
+---
 
-## Features
+## At a glance
 
-### Customer Side
-- User registration & login
-- Interactive menu with categories (Local Favorites, Rice Dishes, Soups, Drinks, Sides)
-- Custom options (protein choice, spice level, portion size)
-- Shopping cart with quantity management
-- Multiple Ghanaian payment methods (MTN MoMo, Vodafone Cash, AirtelTigo Money, Cash on Delivery, Card, Bank Transfer)
-- Promo code system
-- Live order status tracking with visual progress bar
-- Order history
-- AI chatbot for instant help
+| | |
+|---|---|
+| Interface | React 18, React Router 7, TanStack Query, Tailwind CSS, Recharts |
+| API | Node 20+, Express 4, PostgreSQL (`node-postgres`), Zod |
+| Deployment | Neon (PostgreSQL) + Vercel (the interface and the API in one project) |
+| Documentation | [`DEPLOYMENT.md`](DEPLOYMENT.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`AUDIT_REPORT.md`](AUDIT_REPORT.md) · [`BRAND_GUIDELINES.md`](BRAND_GUIDELINES.md) · [`backend/README.md`](backend/README.md) — the API reference |
 
-### Admin Dashboard
-- Revenue & order statistics overview
-- Order management (update statuses)
-- Menu management (add/edit/delete items & categories)
-- Sales reports with charts (bar, line, pie)
-- CSV export of sales data
-- Promo code management
+---
 
-## Ghanaian Menu Items
+## What it does
 
-- Banku with Okra Soup - GH₵35
-- Banku with Tilapia - GH₵45
-- Fufu with Light Soup - GH₵40
-- Jollof Rice - GH₵40
-- Waakye and Stew - GH₵35
-- Rice Ball with Groundnut Soup - GH₵38
-- Kenkey with Fried Fish - GH₵30
-- And many more...
+**For the customer**
 
-## Setup Instructions
+- Browse and search the menu by category, with real dish photography.
+- Customise a dish — choose a protein, a portion, an extra — and see the
+  price the kitchen calculates.
+- A cart that survives a device change, and merges into the account when a
+  guest signs up.
+- Checkout by delivery or collection, with a promo code and cash on delivery.
+- Order tracking with the kitchen's own status history.
+- An assistant that answers from the live menu and the customer's own
+  orders — and says so when it does not know.
+
+**For the administrator**
+
+- A dashboard of live figures: orders, revenue booked, revenue collected,
+  revenue outstanding.
+- Order management with the legal status transitions only.
+- Menu and category management, with image upload.
+- Sales reports by period, dish and payment method, and a CSV export of the
+  same figures.
+- Customer management: role assignment and deactivation.
+- Promo codes with usage limits and expiry.
+
+---
+
+## Running it locally
 
 ### Prerequisites
-- Node.js (v16+)
-- PostgreSQL (v12+)
-- npm or yarn
 
-### 1. Clone & Install
+- Node.js 20 or newer
+- PostgreSQL 14 or newer (or the bundled PGlite instance — see below)
 
-```bash
-# Backend
-cd backend
-cp .env.example .env   # Edit with your DB credentials
-npm install
-
-# Frontend
-cd ../frontend
-npm install
-```
-
-### 2. Setup Database
+### 1. Install
 
 ```bash
-# Create PostgreSQL database
-createdb food_ordering
-
-# Run migrations
-cd backend
-npm run migrate
-
-# Seed with sample data
-npm run seed
+npm ci --prefix backend
+npm ci --prefix frontend
 ```
 
-### 3. Run the App
+### 2. Configure
 
 ```bash
-# Terminal 1 - Backend
-cd backend
-npm run dev
-
-# Terminal 2 - Frontend
-cd frontend
-npm start
+cp .env.example backend/.env
+cp .env.example frontend/.env     # keep only the REACT_APP_* block
 ```
 
-### 4. Access the App
+Fill in the placeholders. `JWT_SECRET` and `JWT_REFRESH_SECRET` must each be
+at least 32 characters; the API refuses to start in production with a weak
+one. `npm run env:check --prefix backend` reports anything still missing.
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
+### 3. Create the database
 
-### Demo Credentials
+```bash
+npm run migrate --prefix backend    # creates the schema
+npm run seed --prefix backend       # loads the reference menu
+```
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@foodgh.com | admin123 |
-| Customer | kwame@example.com | password123 |
+The first administrator is created **only** from `BOOTSTRAP_ADMIN_EMAIL` and
+`BOOTSTRAP_ADMIN_PASSWORD`. There is no default administrator credential
+anywhere in this repository, and none is printed by any script.
 
-## Project Structure
+### 4. Run
+
+```bash
+npm start --prefix backend     # the API on :5000
+npm start --prefix frontend    # the interface on :3000
+```
+
+No PostgreSQL to install? The repository carries PostgreSQL 17 compiled to
+WebAssembly, exposed over TCP:
+
+```bash
+node backend/scripts/dev-postgres.mjs --port 55432 --data-dir backend/.pgdata
+```
+
+### 5. Test
+
+```bash
+npm test                        # the backend suite and the interface suite
+npm run audit:security          # dependency audit, secret scan, header scan, authorisation matrix
+```
+
+The backend suite starts a disposable PostgreSQL instance, migrates it with
+the real migration runner and exercises the real application through HTTP.
+Nothing in it touches a developer database.
+
+---
+
+## The API
+
+The full reference is in [`backend/README.md`](backend/README.md). In short:
+
+- The session lives in an **httpOnly cookie** — never in `localStorage`.
+- Money is a **string** (`"40.00"`) and is always the **server's** figure.
+- Ids are **integers**.
+- Errors are `{"error": {"code": "...", "message": "..."}}`.
+- Every response carries `Cache-Control: no-store`.
+
+---
+
+## Layout
 
 ```
-food-ordering-app/
+afia-food-hub/
+├── api/index.js            # the Vercel Function entry point
+├── vercel.json             # the deployment configuration
 ├── backend/
-│   ├── config/          # DB config & migrations
-│   ├── controllers/     # Route handlers
-│   ├── middleware/       # Auth middleware
-│   ├── models/          # Database models
-│   ├── routes/          # API routes
-│   ├── seeds/           # Seed data
-│   ├── utils/           # Utilities
-│   └── server.js        # Entry point
+│   ├── src/
+│   │   ├── app.js          # the Express application
+│   │   ├── config/         # environment and database pool
+│   │   ├── db/             # migrations and seed
+│   │   ├── middleware/      # authentication, validation, rate limiting
+│   │   ├── routes/         # the HTTP surface
+│   │   ├── services/       # the business rules
+│   │   └── utils/
+│   ├── tests/              # the integration suite
+│   └── scripts/
 ├── frontend/
-│   └── src/
-│       ├── components/  # React components
-│       │   ├── auth/    # Auth forms
-│       │   ├── cart/    # Cart components
-│       │   ├── chatbot/ # AI chatbot
-│       │   ├── layout/  # Navbar, Footer
-│       │   ├── menu/    # Menu components
-│       │   └── tracking/# Order tracking
-│       ├── context/     # React contexts
-│       ├── pages/       # Page components
-│       ├── services/    # API service
-│       └── App.js       # Main app
-└── README.md
+│   ├── src/
+│   │   ├── components/     # brand, layout and chatbot components
+│   │   ├── context/        # authentication and cart
+│   │   ├── pages/          # the customer and administrator screens
+│   │   └── services/       # the API client
+│   └── tests/e2e/          # the browser journeys
+└── tools/                  # the security audit and the clean-install check
 ```
 
-## API Endpoints
+---
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/auth/signup | Register new user |
-| POST | /api/auth/login | Login |
-| GET | /api/auth/profile | Get profile |
-| PUT | /api/auth/profile | Update profile |
-| GET | /api/menu/categories | List categories |
-| GET | /api/menu/items | List menu items |
-| POST | /api/orders | Create order |
-| GET | /api/orders/my-orders | My orders |
-| GET | /api/orders/:id | Order details |
-| GET | /api/admin/dashboard | Dashboard stats |
-| GET | /api/admin/sales | Sales data |
-| GET | /api/admin/sales/export | Download CSV |
+## Payments
 
-## Environment Variables
+No payment provider is configured. The application says so plainly and offers
+cash on delivery — it never shows an invented mobile-money number, and it
+never reports a payment as complete without the provider confirming it.
 
-See `.env.example` in the backend directory for all required variables.
+When the owner's Paystack or Hubtel credentials arrive, the provider is
+enabled by setting `PAYMENT_PROVIDER` and the matching secrets; the webhook
+verifies the provider's signature before a payment is marked as paid.
 
-## Git Workflow
+---
 
-Use these commands to start working with Git, create branches, and publish the project to a new remote repository.
+## Brand
 
-### 1. Create a local repository
-
-If this folder is not already a Git repository, initialize it first:
-
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-```
-
-### 2. Create a branch
-
-Create a new branch for your work and switch to it:
-
-```bash
-git checkout -b feature/your-branch-name
-```
-
-To see all branches, run:
-
-```bash
-git branch
-```
-
-### 3. Commit your changes
-
-After editing files, stage and commit them:
-
-```bash
-git add .
-git commit -m "Describe your changes"
-```
-
-### 4. Create a new remote repository
-
-Create a new repository on GitHub, GitLab, or Bitbucket, then connect it to this project:
-
-```bash
-git remote add origin https://github.com/your-username/your-repo-name.git
-git branch -M main
-git push -u origin main
-```
-
-If you prefer the GitHub CLI, you can create and publish the repo in one step:
-
-```bash
-gh repo create your-repo-name --private --source=. --remote=origin --push
-```
+The identity — the emblem, the palette, the type scale and the component
+system — is specified in [`BRAND_GUIDELINES.md`](BRAND_GUIDELINES.md) and
+implemented in `frontend/src/components/brand/`. The photography is licensed
+and credited in `frontend/public/brand/PHOTO-CREDITS.md`.

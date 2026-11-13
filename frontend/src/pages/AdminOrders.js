@@ -4,7 +4,7 @@ import { adminAPI, apiErrorMessage } from '../services/api';
 import { BrandPrice, BrandBadge, BrandErrorState, BrandLoader, PageMeta } from '../components/brand';
 import { RefreshCw, ChevronDown, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { ORDER_STATUS, ORDER_STATUS_FLOW, PAYMENT_STATUS } from '../config/brand';
+import { ORDER_STATUS, ORDER_STATUS_FLOW, PAYMENT_STATUS, nextOrderStatuses } from '../config/brand';
 
 const STATUS_OPTIONS = [
   ...ORDER_STATUS_FLOW.map((value) => ({ value, label: ORDER_STATUS[value].label })),
@@ -129,12 +129,7 @@ const AdminOrders = () => {
               label: order.payment_status,
               tone: 'neutral',
             };
-            const allowed = [
-              ...(ORDER_STATUS_FLOW.includes(order.status)
-                ? ORDER_STATUS_FLOW.slice(ORDER_STATUS_FLOW.indexOf(order.status) + 1)
-                : []),
-              ...(order.status !== 'delivered' && order.status !== 'cancelled' ? ['cancelled'] : []),
-            ];
+            const allowed = nextOrderStatuses(order.status);
 
             return (
               <article key={order.id} className="card p-5">

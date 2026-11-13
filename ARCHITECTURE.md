@@ -323,11 +323,14 @@ The existing Express application is *almost* serverless-compatible. Three adapta
 
 1. **Entry point.** Export the app instead of calling `app.listen()`:
    ```js
-   // api/index.js
-   import app from './app.js';
+   // api/index.js  (repository root — Vercel builds every file in the root api/ directory)
+   import { createApp } from '../backend/src/app.js';
+   const app = createApp({ restoreApiPrefix: true });
    export default app;
    ```
    Vercel invokes the exported handler for every request under `/api`.
+   `restoreApiPrefix` puts the `/api` prefix back on the request path when the platform
+   hands it over without one, so the routes are matched the same way in every environment.
 
 2. **Pooled connections.** A serverless function must not open a new PostgreSQL pool per
    invocation. Use Neon's **pooled** connection string (the `-pooler` host) with `max: 1` per

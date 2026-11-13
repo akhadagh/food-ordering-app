@@ -91,6 +91,27 @@ export const ORDER_STATUS_FLOW = [
   'delivered',
 ];
 
+/**
+ * The status transitions the kitchen may make.
+ *
+ * This is the same table the API enforces (`ALLOWED_TRANSITIONS` in
+ * `backend/src/services/order.service.js`). The interface must offer exactly
+ * these: an option the server will refuse is an option that produces an
+ * error in front of the administrator.
+ */
+export const ORDER_STATUS_TRANSITIONS = {
+  placed: ['confirmed', 'cancelled'],
+  confirmed: ['preparing', 'cancelled'],
+  preparing: ['ready', 'cancelled'],
+  ready: ['out_for_delivery', 'cancelled'],
+  out_for_delivery: ['delivered', 'cancelled'],
+  delivered: [],
+  cancelled: [],
+};
+
+/** The statuses an order may be moved to from the one it is in. */
+export const nextOrderStatuses = (status) => ORDER_STATUS_TRANSITIONS[status] || [];
+
 export const PAYMENT_STATUS = {
   pending: { label: 'Payment pending', tone: 'warning' },
   pending_cod: { label: 'Pay on delivery', tone: 'neutral' },

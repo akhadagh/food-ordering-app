@@ -1,9 +1,10 @@
 # Afia Food Hub — Repair Plan
 
-**Version:** 1.0
-**Date:** 2026-11-11
+**Version:** 1.2
+**Date:** 2026-11-13
 **Basis:** `AUDIT_REPORT.md` (Sprint 0 findings)
-**Status:** Sprint 0 complete. Awaiting approval to begin Sprint 1.
+**Status:** Sprints 0–7 complete. Sprint 8 is complete except for 8.6, which
+needs the owner's Vercel access.
 
 ---
 
@@ -29,14 +30,14 @@
 | Sprint | Theme | Sprints' primary outcome | Depends on |
 |---|---|---|---|
 | 0 | Discovery & preparation | ✅ **Complete** — audit, architecture, brand direction, baseline verified | — |
-| 1 | Brand identity | Afia Food Hub identity live across every surface | Sprint 0 |
-| 2 | Core application & infrastructure | Backend in-repo, running on Neon-compatible PostgreSQL, deployable to Vercel | Sprint 0 |
-| 3 | Authentication & security | Secure, rate-limited, non-escalatable auth | Sprint 2 |
-| 4 | Menu & shopping cart | Server-authoritative menu, options, pricing, cart | Sprint 2, 3 |
-| 5 | Checkout, payments & orders | Verified payment lifecycle, correct order state machine | Sprint 2, 3, 4 |
-| 6 | Administration | Accurate dashboard, order/menu/promo management, real reports | Sprint 2, 5 |
-| 7 | UI/UX & performance | Responsive, accessible, fast, resilient | Sprint 1, 4, 5, 6 |
-| 8 | Testing & production readiness | Automated test suite, security checks, deployment docs, acceptance pass | All |
+| 1 | Brand identity | ✅ **Complete** — Afia Food Hub identity live across every surface | Sprint 0 |
+| 2 | Core application & infrastructure | ✅ **Complete** — backend in-repo, running on PostgreSQL, deployable to Vercel | Sprint 0 |
+| 3 | Authentication & security | ✅ **Complete** — secure, rate-limited, non-escalatable auth | Sprint 2 |
+| 4 | Menu & shopping cart | ✅ **Complete** — server-authoritative menu, options, pricing, cart | Sprint 2, 3 |
+| 5 | Checkout, payments & orders | ✅ **Complete** (5.5–5.6 credential-gated) — verified payment lifecycle, correct order state machine | Sprint 2, 3, 4 |
+| 6 | Administration | ✅ **Complete** — accurate dashboard, order/menu/promo management, real reports | Sprint 2, 5 |
+| 7 | UI/UX & performance | ✅ **Complete** — responsive, accessible, fast, resilient | Sprint 1, 4, 5, 6 |
+| 8 | Testing & production readiness | ⏳ **8.1–8.5, 8.7 complete** — 349 automated checks, 12/12 security checks, the deployment configuration; **8.6 blocked** on Vercel access | All |
 
 ### Adjusted order — justification
 
@@ -251,15 +252,21 @@ fails against the old behaviour.
 
 ## 11. Sprint 8 — Testing & production readiness
 
-| # | Task | Addresses | Est. |
-|---|---|---|---|
-| 8.1 | Backend integration suite (auth, authz, menu, cart, checkout, payments, orders, admin) | P1-12 | 10 h |
-| 8.2 | Frontend component and flow tests (RTL) | P1-12 | 8 h |
-| 8.3 | Security checks: dependency audit, secret scan, header scan, authz matrix | Brief §7 | 5 h |
-| 8.4 | Clean-install verification on a fresh machine | Brief §6 | 3 h |
-| 8.5 | Deployment documentation (`DEPLOYMENT.md`) and runbooks | Brief §13 | 4 h |
-| 8.6 | Vercel preview deployment and full acceptance test | Brief §16 | 5 h |
-| 8.7 | Final audit re-run; verify every P0/P1 is closed | Sprint 8 | 4 h |
+| # | Task | Addresses | Est. | Result |
+|---|---|---|---|---|
+| 8.1 | Backend integration suite (auth, authz, menu, cart, checkout, payments, orders, admin) | P1-12 | 10 h | ✅ **236 checks, 12 suites** — each suite passes on its own |
+| 8.2 | Frontend component and flow tests (RTL) | P1-12 | 8 h | ✅ **113 checks, 11 suites** |
+| 8.3 | Security checks: dependency audit, secret scan, header scan, authz matrix | Brief §7 | 5 h | ✅ **12/12** — `node tools/security-audit.mjs --with-tests` |
+| 8.4 | Clean-install verification on a fresh machine | Brief §6 | 3 h | ✅ `tools/verify-clean-install.sh` |
+| 8.5 | Deployment documentation (`DEPLOYMENT.md`) and runbooks | Brief §13 | 4 h | ✅ updated to the configuration that now exists |
+| 8.6 | Vercel preview deployment and full acceptance test | Brief §16 | 5 h | ⛔ **Blocked** — needs the owner's Vercel access |
+| 8.7 | Final audit re-run; verify every P0/P1 is closed | Sprint 8 | 4 h | ✅ **All 7 P0 and 16 P1 closed**; **P1-14** and **P1-16** were found open and closed here |
+
+> **What the final re-run found.** P1-14 and P1-16 had been *documented* rather
+> than *done*: there was no `vercel.json`, and the API reference still
+> described the old FoodGH API. The root `README.md` was still publishing the
+> live administrator's credential (P0-07). All three are closed, and a test
+> now refuses each of them coming back.
 
 ---
 
@@ -326,16 +333,31 @@ fails against the old behaviour.
 
 ## 15. Immediate next step
 
-**Sprint 1 — Brand identity** is ready to begin on approval.
+**Sprint 8.6 — the Vercel preview deployment and the acceptance pass.** It is
+the only part of Sprint 8 that is not done, and it needs the owner's Vercel
+access.
 
-The first three tasks are deliberately small and independently verifiable, so that the most
-exposed customer-facing risks are closed quickly:
+Everything else is in place and verified by **349 automated checks** (236
+backend, 113 interface) and **64 browser checks** against a production build:
 
-1. **1.10** — remove the invented payment details from checkout, footer and chatbot (P0-05).
-2. **1.11** — remove the published demo credentials from the login page and README (P0-07).
-3. **1.8 / 1.9** — replace the branding and delete the fabricated claims.
+1. **The deployment is ready to be deployed, but has never been deployed.**
+   `vercel.json`, the root `api/index.js` and the root manifest are written
+   and checked by `backend/tests/api/deployment.test.js`. On the first preview
+   deployment, confirm three things before promoting anything:
+   - `curl -i https://<preview>/api/health` → `200`, `db: ok`
+   - open `/orders/12` directly in the browser → the interface, not a 404
+     (this is the SPA rewrite, finding **P1-14**)
+   - `curl -i https://<preview>/orders/12` → `200` with the interface's HTML
+2. **The acceptance pass** — the customer and administration journeys
+   (`tools/verify-browser-journeys.sh`) against the preview URL, with
+   `REACT_APP_API_URL` pointed at the preview.
+3. **The owner actions in `AUDIT_REPORT.md` §8**, which need access only the
+   owner has: rotate the live admin password and `JWT_SECRET`, delete the
+   probe admin account, delete the probe order.
 
-Then proceed to the full brand asset production and integration.
+The credential-gated work — Neon, Paystack, Hubtel — still needs the owner's
+credentials. Until they arrive the application ships the honest "provider not
+configured" state rather than a simulated payment.
 
 > **Owner actions that remain outstanding regardless of sprint order** are listed in
 > `AUDIT_REPORT.md` §8. Items 1–3 (rotate the admin password, delete the probe admin account,

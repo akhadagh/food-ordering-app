@@ -124,20 +124,7 @@ const CheckoutPage = () => {
       toast.error('Please enter a phone number we can reach you on.');
       return;
     }
-  if (cartError) {
-    return (
-      <div className="page-container">
-        <BrandErrorState
-          title="We could not load your cart"
-          description={cartError}
-          actionLabel="Try again"
-          onAction={reload}
-        />
-      </div>
-    );
-  }
-
-  if (!items.length) {
+    if (!items.length) {
       toast.error('Your cart is empty.');
       return;
     }
@@ -181,6 +168,21 @@ const CheckoutPage = () => {
     return (
       <div className="page-container">
         <BrandLoader label="Preparing checkout…" />
+      </div>
+    );
+  }
+
+  // A cart that failed to load is not an empty cart: say so, and offer a
+  // retry, rather than telling the customer they have nothing in it.
+  if (cartError) {
+    return (
+      <div className="page-container">
+        <BrandErrorState
+          title="We could not load your cart"
+          description={cartError}
+          actionLabel="Try again"
+          onAction={reload}
+        />
       </div>
     );
   }
