@@ -33,3 +33,8 @@ backend/.test-db.json
 # generated brand build artefacts
 .brand-cache/
 __pycache__/
+
+# Vercel CLI
+.vercel/
+.env.local
+.env*

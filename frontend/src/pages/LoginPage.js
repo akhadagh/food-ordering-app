@@ -148,7 +148,7 @@ const LoginPage = () => {
 
       <div className="relative hidden lg:block">
         <img
-          src="/brand/banners/hero-home-1200x1200.jpg"
+          src="/brand/food/fufu-light-soup.jpg"
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
         />
