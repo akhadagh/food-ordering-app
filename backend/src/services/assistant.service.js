@@ -91,7 +91,7 @@ async function menuAnswer(text) {
 async function availabilityAnswer(text) {
   const lower = text.toLowerCase();
 
-  // The question is a sentence, not a dish name: "is sobolo available?" has
+  // The question is a sentence, not a dish name: "is kokonte available?" has
   // to be matched against the dishes on the menu, not searched for whole.
   const { rows } = await query('SELECT name, price, is_available FROM menu_items ORDER BY name');
 
@@ -295,7 +295,7 @@ export async function answer(text, user = null) {
   if (match(lower, 'available', 'in stock', 'sold out', 'still have')) {
     return availabilityAnswer(lower);
   }
-  if (match(lower, 'menu', 'food', 'dish', 'dishes', 'eat', 'serve', 'price', 'cost', 'how much', 'what do you have', 'jollof', 'banku', 'fufu', 'waakye', 'kenkey', 'rice', 'soup')) {
+  if (match(lower, 'menu', 'food', 'dish', 'dishes', 'eat', 'serve', 'price', 'cost', 'how much', 'what do you have', 'jollof', 'banku', 'fufu', 'omotuo', 'kokonte', 'rice', 'soup')) {
     return menuAnswer(lower);
   }
 

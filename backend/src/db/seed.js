@@ -3,9 +3,17 @@
  *
  *   node src/db/seed.js
  *
- * The menu below is the dish list and price list that the project's own
- * README documented before the transformation. It is preserved rather than
- * invented - the owner should confirm the prices before launch.
+ * Afia Food Hub sells only five Ghanaian food categories: Banku, Fufu,
+ * Omotuo, Kokonte and Rice dishes. Every other product (kenkey, waakye,
+ * beans and plantain, smoked fish, palm wine, sobolo, bottled water and
+ * similar standalone items) has been removed from the active catalogue and
+ * must not be reintroduced here.
+ *
+ * Prices marked 0 are DRAFT placeholders: the client has not confirmed them,
+ * and those dishes are seeded as unavailable (is_available = false) so they
+ * can never be ordered until the owner supplies a real price and publishes
+ * them. Published items carry prices preserved from the previous reference
+ * list; the owner should confirm them before launch.
  *
  * An administrator is created from BOOTSTRAP_ADMIN_EMAIL and
  * BOOTSTRAP_ADMIN_PASSWORD. There is NO default password: a default
@@ -31,51 +39,53 @@ const client = new pg.Client({
 
 const CATEGORIES = [
   {
-    name: 'Local Favourites',
-    slug: 'local-favourites',
-    description: 'The Ghanaian classics people come back for.',
-    image: '/brand/banners/category-local-800x800.jpg',
+    name: 'Banku',
+    slug: 'banku',
+    description: 'Fermented maize and cassava dough, served with okra stew, grilled fish and pepper sauces.',
+    image: '/brand/banners/category-banku.jpg',
     sort: 1,
   },
   {
-    name: 'Rice Dishes',
-    slug: 'rice-dishes',
-    description: 'Jollof, waakye and rice bowls cooked to order.',
-    image: '/brand/banners/category-rice-800x800.jpg',
+    name: 'Fufu',
+    slug: 'fufu',
+    description: 'Pounded cassava and plantain, served with light, groundnut and palm nut soups.',
+    image: '/brand/banners/category-fufu.jpg',
     sort: 2,
   },
   {
-    name: 'Soups & Banku',
-    slug: 'soups-and-banku',
-    description: 'Light soup, okra stew and banku the way it is served at home.',
-    image: '/brand/banners/category-banku-800x800.jpg',
+    name: 'Omotuo',
+    slug: 'omotuo',
+    description: 'Soft rice balls served with groundnut or palm nut soup.',
+    image: '/brand/banners/category-omotuo.jpg',
     sort: 3,
   },
   {
-    name: 'Drinks',
-    slug: 'drinks',
-    description: 'Cool off with something from the cooler.',
-    image: '/brand/banners/category-drinks-800x800.jpg',
+    name: 'Kokonte',
+    slug: 'kokonte',
+    description: 'Dried cassava flour pudding served with groundnut or palm nut soup.',
+    image: '/brand/banners/category-kokonte.jpg',
     sort: 4,
   },
   {
-    name: 'Sides & Extras',
-    slug: 'sides-and-extras',
-    description: 'Gari, beans, fried plantain and everything to go with it.',
-    image: '/brand/banners/category-sides-800x800.jpg',
+    name: 'Rice dishes',
+    slug: 'rice-dishes',
+    description: 'Ghanaian jollof, fried rice and rice with stew, cooked to order.',
+    image: '/brand/banners/category-rice-dishes.jpg',
     sort: 5,
   },
 ];
 
 const MENU = [
+  /* ------------------------------------------------------------ Banku --- */
   {
     name: 'Banku with Okra Soup',
     slug: 'banku-with-okra-soup',
-    category: 'soups-and-banku',
+    category: 'banku',
     price: 35,
-    description: 'Soft fermented banku with a rich okra stew and your choice of protein.',
+    description: 'Soft fermented banku served with a rich okra stew and your choice of protein.',
     image: '/brand/food/banku-okra-soup.jpg',
     featured: true,
+    available: true,
     options: [
       {
         name: 'Protein',
@@ -91,13 +101,14 @@ const MENU = [
     ],
   },
   {
-    name: 'Banku with Tilapia',
-    slug: 'banku-with-tilapia',
-    category: 'soups-and-banku',
+    name: 'Banku with Grilled Tilapia',
+    slug: 'banku-with-grilled-tilapia',
+    category: 'banku',
     price: 45,
     description: 'Whole grilled tilapia served with banku and pepper sauce.',
-    image: '/brand/food/banku.jpg',
+    image: '/brand/food/banku-grilled-tilapia.jpg',
     featured: true,
+    available: true,
     options: [
       {
         name: 'Tilapia size',
@@ -111,14 +122,16 @@ const MENU = [
       { name: 'Spice level', type: 'single', required: false, options: [{ label: 'Mild', price_delta: 0 }, { label: 'Hot', price_delta: 0 }] },
     ],
   },
+  /* ------------------------------------------------------------- Fufu --- */
   {
     name: 'Fufu with Light Soup',
     slug: 'fufu-with-light-soup',
-    category: 'soups-and-banku',
+    category: 'fufu',
     price: 40,
-    description: 'Smooth fufu with Ghanaian light soup and a generous portion of meat.',
+    description: 'Smooth fufu served with Ghanaian light soup and your choice of protein.',
     image: '/brand/food/fufu-light-soup.jpg',
     featured: true,
+    available: true,
     options: [
       {
         name: 'Protein',
@@ -134,13 +147,127 @@ const MENU = [
     ],
   },
   {
-    name: 'Jollof Rice',
+    name: 'Fufu with Groundnut Soup',
+    slug: 'fufu-with-groundnut-soup',
+    category: 'fufu',
+    price: 0,
+    description: 'Smooth fufu served with rich groundnut soup and your choice of protein.',
+    image: '/brand/food/fufu-groundnut-soup.jpg',
+    featured: false,
+    available: false,
+    options: [
+      {
+        name: 'Protein',
+        type: 'single',
+        required: true,
+        options: [
+          { label: 'Chicken', price_delta: 0 },
+          { label: 'Goat meat', price_delta: 6 },
+          { label: 'Snail', price_delta: 12 },
+        ],
+      },
+    ],
+  },
+  /* ------------------------------------------------------------ Omotuo --- */
+  {
+    name: 'Omotuo with Groundnut Soup',
+    slug: 'omotuo-with-groundnut-soup',
+    category: 'omotuo',
+    price: 0,
+    description: 'Soft rice balls served with smooth groundnut soup and your choice of protein.',
+    image: '/brand/food/omotuo-groundnut-soup.jpg',
+    featured: false,
+    available: false,
+    options: [
+      {
+        name: 'Protein',
+        type: 'single',
+        required: true,
+        options: [
+          { label: 'Chicken', price_delta: 0 },
+          { label: 'Goat meat', price_delta: 6 },
+          { label: 'Snail', price_delta: 12 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Omotuo with Palm Nut Soup',
+    slug: 'omotuo-with-palm-nut-soup',
+    category: 'omotuo',
+    price: 0,
+    description: 'Soft rice balls served with palm nut soup and your choice of protein.',
+    image: null,
+    featured: false,
+    available: false,
+    options: [
+      {
+        name: 'Protein',
+        type: 'single',
+        required: true,
+        options: [
+          { label: 'Chicken', price_delta: 0 },
+          { label: 'Goat meat', price_delta: 6 },
+          { label: 'Snail', price_delta: 12 },
+        ],
+      },
+    ],
+  },
+  /* ------------------------------------------------------------ Kokonte --- */
+  {
+    name: 'Kokonte with Groundnut Soup',
+    slug: 'kokonte-with-groundnut-soup',
+    category: 'kokonte',
+    price: 0,
+    description: 'Dried cassava flour pudding served with rich groundnut soup and your choice of protein.',
+    image: '/brand/food/kokonte-groundnut-soup.jpg',
+    featured: false,
+    available: false,
+    options: [
+      {
+        name: 'Protein',
+        type: 'single',
+        required: true,
+        options: [
+          { label: 'Chicken', price_delta: 0 },
+          { label: 'Goat meat', price_delta: 6 },
+          { label: 'Snail', price_delta: 12 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Kokonte with Palm Nut Soup',
+    slug: 'kokonte-with-palm-nut-soup',
+    category: 'kokonte',
+    price: 0,
+    description: 'Dried cassava flour pudding served with palm nut soup and your choice of protein.',
+    image: null,
+    featured: false,
+    available: false,
+    options: [
+      {
+        name: 'Protein',
+        type: 'single',
+        required: true,
+        options: [
+          { label: 'Chicken', price_delta: 0 },
+          { label: 'Goat meat', price_delta: 6 },
+          { label: 'Snail', price_delta: 12 },
+        ],
+      },
+    ],
+  },
+  /* ------------------------------------------------------- Rice dishes --- */
+  {
+    name: 'Ghanaian Jollof Rice',
     slug: 'jollof-rice',
     category: 'rice-dishes',
     price: 40,
     description: 'Smoky Ghanaian jollof rice, cooked in tomato and pepper and served hot.',
     image: '/brand/food/jollof-rice.jpg',
     featured: true,
+    available: true,
     options: [
       {
         name: 'Protein',
@@ -156,117 +283,76 @@ const MENU = [
     ],
   },
   {
-    name: 'Waakye and Stew',
-    slug: 'waakye-and-stew',
+    name: 'Ghanaian Fried Rice',
+    slug: 'fried-rice',
     category: 'rice-dishes',
-    price: 35,
-    description: 'Rice and beans with waakye leaves, served with stew and boiled egg.',
-    image: '/brand/food/waakye.jpg',
+    price: 0,
+    description: 'Ghanaian-style fried rice with vegetables and your choice of protein.',
+    image: '/brand/food/fried-rice.jpg',
     featured: false,
-    options: [
-      { name: 'Extras', type: 'multiple', required: false, options: [{ label: 'Boiled egg', price_delta: 3 }, { label: 'Gari', price_delta: 0 }, { label: 'Spaghetti', price_delta: 0 }] },
-      { name: 'Protein', type: 'single', required: false, options: [{ label: 'Chicken', price_delta: 0 }, { label: 'Beef', price_delta: 6 }, { label: 'Fish', price_delta: 0 }] },
-    ],
-  },
-  {
-    name: 'Waakye Special',
-    slug: 'waakye-special',
-    category: 'rice-dishes',
-    price: 45,
-    description: 'Waakye and stew served in a leaf with fried plantain, egg and shito.',
-    image: '/brand/food/waakye-leaf.jpg',
-    featured: true,
-    options: [],
-  },
-  {
-    name: 'Rice Ball with Groundnut Soup',
-    slug: 'rice-ball-with-groundnut-soup',
-    category: 'rice-dishes',
-    price: 38,
-    description: 'A hand-formed rice ball with smooth groundnut soup.',
-    image: '/brand/food/jollof-rice-stew.jpg',
-    featured: false,
+    available: false,
     options: [
       {
         name: 'Protein',
         type: 'single',
-        required: false,
-        options: [{ label: 'Chicken', price_delta: 0 }, { label: 'Goat meat', price_delta: 7 }],
+        required: true,
+        options: [
+          { label: 'Chicken', price_delta: 0 },
+          { label: 'Goat meat', price_delta: 10 },
+          { label: 'Beef', price_delta: 5 },
+        ],
       },
     ],
   },
   {
-    name: 'Kenkey with Fried Fish',
-    slug: 'kenkey-with-fried-fish',
-    category: 'local-favourites',
-    price: 30,
-    description: 'Soft Fante kenkey with fried fish, pepper and onion.',
-    image: '/brand/food/kenkey.jpg',
-    featured: true,
+    name: 'Rice with Stew',
+    slug: 'rice-with-stew',
+    category: 'rice-dishes',
+    price: 0,
+    description: 'Plain rice served with tomato stew and your choice of protein.',
+    image: null,
+    featured: false,
+    available: false,
     options: [
-      { name: 'Fish', type: 'single', required: false, options: [{ label: 'Tilapia', price_delta: 0 }, { label: 'Mackerel', price_delta: 0 }] },
+      {
+        name: 'Protein',
+        type: 'single',
+        required: true,
+        options: [
+          { label: 'Chicken', price_delta: 0 },
+          { label: 'Goat meat', price_delta: 6 },
+          { label: 'Fish', price_delta: 0 },
+        ],
+      },
     ],
   },
-  {
-    name: 'Jollof Rice with Grilled Fish',
-    slug: 'jollof-rice-with-grilled-fish',
-    category: 'local-favourites',
-    price: 48,
-    description: 'Jollof rice served with grilled tilapia and fresh vegetables.',
-    image: '/brand/food/jollof-grilled-fish.jpg',
-    featured: true,
-    options: [],
-  },
-  {
-    name: 'Beans, Plantain and Gari',
-    slug: 'beans-plantain-and-gari',
-    category: 'sides-and-extras',
-    price: 22,
-    description: 'Red-red: beans, fried ripe plantain and gari in palm oil.',
-    image: '/brand/food/beans-plantain-gari.jpg',
-    featured: false,
-    options: [],
-  },
-  {
-    name: 'Smoked Fish',
-    slug: 'smoked-fish',
-    category: 'sides-and-extras',
-    price: 28,
-    description: 'Smoked fish with pepper sauce — add it to any dish.',
-    image: '/brand/food/smoked-fish.jpg',
-    featured: false,
-    options: [],
-  },
-  {
-    name: 'Palm Wine',
-    slug: 'palm-wine',
-    category: 'drinks',
-    price: 10,
-    description: 'Naturally fermented palm wine, served cold.',
-    image: '/brand/food/palm-wine.jpg',
-    featured: false,
-    options: [],
-  },
-  {
-    name: 'Sobolo',
-    slug: 'sobolo',
-    category: 'drinks',
-    price: 12,
-    description: 'Hibiscus drink, sweetened and served chilled.',
-    image: '/brand/banners/category-drinks-800x800.jpg',
-    featured: false,
-    options: [],
-  },
-  {
-    name: 'Water',
-    slug: 'water',
-    category: 'drinks',
-    price: 5,
-    description: 'A 500ml bottle of still water.',
-    image: '/brand/banners/category-drinks-800x800.jpg',
-    featured: false,
-    options: [],
-  },
+];
+
+/**
+ * Slugs shipped by the previous catalogue. They are removed on every seed so
+ * that re-seeding an existing database drops the old dishes and categories
+ * instead of leaving them orderable next to the new ones. Order history keeps
+ * its name/price snapshots; only the live catalogue rows are deleted.
+ */
+const LEGACY_MENU_SLUGS = [
+  'banku-with-tilapia',
+  'waakye-and-stew',
+  'waakye-special',
+  'rice-ball-with-groundnut-soup',
+  'kenkey-with-fried-fish',
+  'jollof-rice-with-grilled-fish',
+  'beans-plantain-and-gari',
+  'smoked-fish',
+  'palm-wine',
+  'sobolo',
+  'water',
+];
+
+const LEGACY_CATEGORY_SLUGS = [
+  'local-favourites',
+  'soups-and-banku',
+  'drinks',
+  'sides-and-extras',
 ];
 
 async function seed() {
@@ -293,31 +379,50 @@ async function seed() {
   let count = 0;
   for (const item of MENU) {
     await client.query(
-      `INSERT INTO menu_items
-         (category_id, name, slug, description, price, image_url, is_available, is_featured,
-          stock_quantity, custom_options)
-       VALUES ($1, $2, $3, $4, $5, $6, true, $7, 0, $8::jsonb)
-       ON CONFLICT (slug) DO UPDATE
-         SET name = EXCLUDED.name,
-             description = EXCLUDED.description,
-             price = EXCLUDED.price,
-             image_url = EXCLUDED.image_url,
-             is_featured = EXCLUDED.is_featured,
-             custom_options = EXCLUDED.custom_options`,
-      [
-        categoryIds.get(item.category) ?? null,
-        item.name,
-        item.slug,
-        item.description,
-        item.price.toFixed(2),
-        item.image,
-        item.featured,
-        JSON.stringify(item.options || []),
-      ]
+       `INSERT INTO menu_items
+          (category_id, name, slug, description, price, image_url, is_available, is_featured,
+           stock_quantity, custom_options)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9::jsonb)
+        ON CONFLICT (slug) DO UPDATE
+          SET name = EXCLUDED.name,
+              description = EXCLUDED.description,
+              price = EXCLUDED.price,
+              image_url = EXCLUDED.image_url,
+              is_available = EXCLUDED.is_available,
+              is_featured = EXCLUDED.is_featured,
+              custom_options = EXCLUDED.custom_options`,
+        [
+          categoryIds.get(item.category) ?? null,
+          item.name,
+          item.slug,
+          item.description,
+          item.price.toFixed(2),
+          item.image,
+          item.available ?? item.is_available ?? true,
+          item.featured,
+          JSON.stringify(item.options || []),
+        ]
     );
     count += 1;
   }
   logger.info(`Seeded ${count} menu items.`);
+
+  // ----------------------------------------------------- legacy cleanup ----
+  const { rowCount: removedItems } = await client.query(
+    `DELETE FROM menu_items
+      WHERE slug = ANY($1::text[])
+         OR category_id IN (SELECT id FROM categories WHERE slug = ANY($2::text[]))`,
+    [LEGACY_MENU_SLUGS, LEGACY_CATEGORY_SLUGS]
+  );
+  const { rowCount: removedCategories } = await client.query(
+    'DELETE FROM categories WHERE slug = ANY($1::text[])',
+    [LEGACY_CATEGORY_SLUGS]
+  );
+  if (removedItems || removedCategories) {
+    logger.info(
+      `Removed ${removedItems} legacy menu item(s) and ${removedCategories} legacy category(ies).`
+    );
+  }
 
   // ------------------------------------------------------------ admin ----
   if (env.bootstrapAdminEmail && env.bootstrapAdminPassword) {

@@ -31,7 +31,7 @@ const ITEMS = [
   {
     id: 12,
     menuItemId: 3,
-    name: 'Palm Wine',
+    name: 'Banku with Okra Soup',
     quantity: 1,
     customOptions: [],
     specialInstructions: '',
@@ -45,7 +45,7 @@ const QUOTE = {
   total: '95.00',
   items: [
     { menu_item_id: 1, line_total: '80.00', image_url: '/brand/food/jollof-rice.jpg' },
-    { menu_item_id: 3, line_total: '10.00', image_url: '/brand/food/palm-wine.jpg' },
+    { menu_item_id: 3, line_total: '10.00', image_url: '/brand/food/banku-okra-soup.jpg' },
   ],
 };
 
@@ -82,7 +82,7 @@ describe('CartPage', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { name: 'Jollof Rice' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Palm Wine' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Banku with Okra Soup' })).toBeInTheDocument();
   });
 
   it('shows the customisation and the note the customer chose', () => {
@@ -130,7 +130,7 @@ describe('CartPage', () => {
     const state = renderPage();
 
     await userEvent.click(
-      screen.getByRole('button', { name: /remove palm wine from your cart/i })
+      screen.getByRole('button', { name: /remove banku with okra soup from your cart/i })
     );
 
     await waitFor(() => expect(state.removeItem).toHaveBeenCalledWith(12));

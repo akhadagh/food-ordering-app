@@ -34,7 +34,7 @@ const CART = {
     {
       id: 12,
       menuItemId: 3,
-      name: 'Palm Wine',
+      name: 'Banku with Okra Soup',
       quantity: 1,
       customOptions: [{ option: 'Size', value: 'Large' }],
       specialInstructions: '',
@@ -104,7 +104,7 @@ describe('CartContext', () => {
 
     await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
     expect(screen.getByTestId('items')).toHaveTextContent('2');
-    expect(screen.getByTestId('names')).toHaveTextContent('Jollof Rice,Palm Wine');
+    expect(screen.getByTestId('names')).toHaveTextContent('Jollof Rice,Banku with Okra Soup');
   });
 
   it('takes every price from the server quote, not from the line', async () => {

@@ -87,8 +87,8 @@ const HomePage = () => {
               Real Ghanaian food, cooked to order and delivered hot.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-bamboo-200 text-pretty">
-              Jollof, banku and okra, fufu and light soup, waakye and kenkey — made fresh in our
-              kitchen and brought to your table while it is still steaming.
+              Banku, fufu, omotuo, kokonte and rice meals — made fresh in our
+              kitchen and brought to your table while they are still steaming.
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">

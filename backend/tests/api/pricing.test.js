@@ -137,7 +137,7 @@ describe('customisation is validated against the dish', () => {
 
   it('refuses a customisation on a dish that offers none', async () => {
     const res = await quote({
-      items: [{ menuItemId: ITEM.palmWine, quantity: 1, customOptions: [{ option: 'Protein', value: 'Chicken' }] }],
+      items: [{ menuItemId: ITEM.friedRice, quantity: 1, customOptions: [{ option: 'Protein', value: 'Chicken' }] }],
     });
 
     expect(res.status).toBe(400);
@@ -146,24 +146,24 @@ describe('customisation is validated against the dish', () => {
 
 describe('availability is checked when the cart is priced', () => {
   it('refuses a dish that is unavailable', async () => {
-    const res = await quote({ items: [{ menuItemId: ITEM.sobolo, quantity: 1 }] });
+    const res = await quote({ items: [{ menuItemId: ITEM.kokonteGroundnut, quantity: 1 }] });
 
     expect(res.status).toBe(422);
     expect(res.body.error.message).toMatch(/currently unavailable/);
   });
 
   it('refuses more than the kitchen has', async () => {
-    const res = await quote({ items: [{ menuItemId: ITEM.waakye, quantity: 5 }] });
+    const res = await quote({ items: [{ menuItemId: ITEM.bankuTilapia, quantity: 5, customOptions: [{ option: 'Tilapia size', value: 'Medium' }] }] });
 
     expect(res.status).toBe(422);
     expect(res.body.error.message).toMatch(/left in stock/);
   });
 
   it('allows what the kitchen has', async () => {
-    const res = await quote({ items: [{ menuItemId: ITEM.waakye, quantity: 2 }] });
+    const res = await quote({ items: [{ menuItemId: ITEM.bankuTilapia, quantity: 2, customOptions: [{ option: 'Tilapia size', value: 'Medium' }] }] });
 
     expect(res.status).toBe(200);
-    expect(res.body.subtotal).toBe('70.00');
+    expect(res.body.subtotal).toBe('90.00');
   });
 
   it('refuses a dish that is not on the menu', async () => {

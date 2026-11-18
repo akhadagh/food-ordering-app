@@ -44,11 +44,11 @@ const Footer = () => {
           <div>
             <h2 className="font-display text-base font-semibold text-white">Popular dishes</h2>
             <ul className="mt-4 space-y-2.5 text-sm text-bamboo-400">
-              <li>Jollof rice</li>
               <li>Banku with okra soup</li>
+              <li>Banku with grilled tilapia</li>
               <li>Fufu with light soup</li>
-              <li>Waakye and stew</li>
-              <li>Kenkey with fried fish</li>
+              <li>Ghanaian jollof rice</li>
+              <li>Omotuo with groundnut soup</li>
             </ul>
           </div>
 

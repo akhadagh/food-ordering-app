@@ -156,14 +156,14 @@ describe('placing an order', () => {
 
     await agent.post('/api/orders').send(ORDER);
 
-    const item = await api().get(`/api/menu/items/${ITEM.waakye}`);
+    const item = await api().get(`/api/menu/items/${ITEM.bankuTilapia}`);
     expect(Number(item.body.stock_quantity)).toBe(2);
 
     await agent
       .post('/api/orders')
-      .send({ ...ORDER, items: [{ menuItemId: ITEM.waakye, quantity: 2 }] });
+      .send({ ...ORDER, items: [{ menuItemId: ITEM.bankuTilapia, quantity: 2, customOptions: [{ option: 'Tilapia size', value: 'Medium' }] }] });
 
-    const after = await api().get(`/api/menu/items/${ITEM.waakye}`);
+    const after = await api().get(`/api/menu/items/${ITEM.bankuTilapia}`);
     expect(Number(after.body.stock_quantity)).toBe(0);
   });
 });
@@ -298,14 +298,14 @@ describe('cancelling an order', () => {
 
     const created = await customer.post('/api/orders').send({
       ...ORDER,
-      items: [{ menuItemId: ITEM.waakye, quantity: 2 }],
+      items: [{ menuItemId: ITEM.bankuTilapia, quantity: 2, customOptions: [{ option: 'Tilapia size', value: 'Medium' }] }],
     });
 
-    const during = await api().get(`/api/menu/items/${ITEM.waakye}`);
+    const during = await api().get(`/api/menu/items/${ITEM.bankuTilapia}`);
     expect(Number(during.body.stock_quantity)).toBe(0);
 
     await customer.post(`/api/orders/${created.body.id}/cancel`).send({});
-    const after = await api().get(`/api/menu/items/${ITEM.waakye}`);
+    const after = await api().get(`/api/menu/items/${ITEM.bankuTilapia}`);
     expect(Number(after.body.stock_quantity)).toBe(2);
   });
 });

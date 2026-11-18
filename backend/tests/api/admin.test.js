@@ -10,7 +10,7 @@ beforeEach(async () => {
 });
 
 const ORDER = {
-  items: [{ menuItemId: ITEM.palmWine, quantity: 2 }],
+  items: [{ menuItemId: ITEM.friedRice, quantity: 2 }],
   deliveryAddress: '12 Independence Avenue, Accra',
   customerPhone: '0241234567',
   paymentMethod: 'cash',
@@ -87,7 +87,7 @@ describe('the dashboard', () => {
     expect(res.body.totalOrders).toBe(1);
     expect(res.body.pendingOrders).toBe(1);
     expect(res.body.totalUsers).toBeGreaterThanOrEqual(2);
-    expect(res.body.totalMenuItems).toBe(4);
+    expect(res.body.totalMenuItems).toBe(6);
     expect(Number(res.body.totalRevenue)).toBe(25);
   });
 
@@ -167,7 +167,7 @@ describe('the sales report', () => {
     expect(res.body.salesStats[0].net_sales).toBe('25.00');
     expect(res.body.salesStats[0].gross_sales).toBe('20.00');
     expect(res.body.salesStats[0].delivery_fees).toBe('5.00');
-    expect(res.body.popularItems[0]).toMatchObject({ name: 'Palm Wine', total_quantity: 2 });
+    expect(res.body.popularItems[0]).toMatchObject({ name: 'Ghanaian Fried Rice', total_quantity: 2 });
     expect(res.body.paymentBreakdown[0]).toMatchObject({ payment_method: 'cash', count: 1 });
   });
 
@@ -185,7 +185,7 @@ describe('the sales report', () => {
 
     const csv = res.text;
     expect(csv.split('\n')[0]).toContain('Date,Orders,Gross Sales (GHS)');
-    expect(csv).toContain('Palm Wine');
+    expect(csv).toContain('Ghanaian Fried Rice');
     expect(csv).toContain('Total Revenue (GHS)');
   });
 

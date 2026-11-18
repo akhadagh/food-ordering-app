@@ -15,7 +15,7 @@ describe('the public menu', () => {
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBe(4);
+    expect(res.body.length).toBe(6);
     expect(res.body.map((i) => i.name)).toContain('Jollof Rice');
   });
 
@@ -42,10 +42,10 @@ describe('the public menu', () => {
   });
 
   it('filters by category', async () => {
-    const res = await api().get('/api/menu/items').query({ category_id: 2 });
+    const res = await api().get('/api/menu/items').query({ category_id: 1 });
 
     expect(res.status).toBe(200);
-    expect(res.body.every((i) => i.category_id === 2)).toBe(true);
+    expect(res.body.every((i) => i.category_id === 1)).toBe(true);
     expect(res.body).toHaveLength(2);
   });
 
@@ -61,7 +61,7 @@ describe('the public menu', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.every((i) => i.is_available === true)).toBe(true);
-    expect(res.body).toHaveLength(3);
+    expect(res.body).toHaveLength(5);
   });
 
   it('paginates', async () => {
@@ -95,7 +95,7 @@ describe('the public menu', () => {
     const res = await api().get('/api/menu/categories');
 
     expect(res.status).toBe(200);
-    expect(res.body.length).toBe(2);
+    expect(res.body.length).toBe(5);
     const rice = res.body.find((c) => c.slug === 'rice-dishes');
     expect(Number(rice.item_count)).toBe(2);
   });
@@ -199,35 +199,35 @@ describe('administering the menu', () => {
     const { agent } = await adminAgent();
 
     const updated = await agent
-      .put(`/api/menu/items/${ITEM.palmWine}`)
-      .send({ price: 12.5, name: 'Palm Wine (large)' });
+      .put(`/api/menu/items/${ITEM.friedRice}`)
+      .send({ price: 12.5, name: 'Fried Rice (large)' });
 
     expect(updated.status).toBe(200);
 
-    const menu = await api().get('/api/menu/items').query({ search: 'Palm Wine' });
-    const served = menu.body.find((i) => i.id === ITEM.palmWine);
+    const menu = await api().get('/api/menu/items').query({ search: 'Fried Rice' });
+    const served = menu.body.find((i) => i.id === ITEM.friedRice);
     expect(Number(served.price)).toBe(12.5);
-    expect(served.name).toBe('Palm Wine (large)');
+    expect(served.name).toBe('Fried Rice (large)');
   });
 
   it('toggles availability', async () => {
     const { agent } = await adminAgent();
 
-    const res = await agent.put(`/api/menu/items/${ITEM.palmWine}`).send({ is_available: false });
+    const res = await agent.put(`/api/menu/items/${ITEM.friedRice}`).send({ is_available: false });
     expect(res.status).toBe(200);
     expect(res.body.is_available).toBe(false);
 
-    const back = await agent.put(`/api/menu/items/${ITEM.palmWine}`).send({ is_available: true });
+    const back = await agent.put(`/api/menu/items/${ITEM.friedRice}`).send({ is_available: true });
     expect(back.body.is_available).toBe(true);
   });
 
   it('deletes a dish', async () => {
     const { agent } = await adminAgent();
 
-    const res = await agent.delete(`/api/menu/items/${ITEM.palmWine}`);
+    const res = await agent.delete(`/api/menu/items/${ITEM.friedRice}`);
     expect(res.status).toBe(200);
 
-    const gone = await api().get(`/api/menu/items/${ITEM.palmWine}`);
+    const gone = await api().get(`/api/menu/items/${ITEM.friedRice}`);
     expect(gone.status).toBe(404);
   });
 
@@ -256,11 +256,16 @@ describe('administering the menu', () => {
     await agent.delete('/api/menu/categories/1').expect(200);
 
     const menu = await api().get('/api/menu/items');
-    expect(menu.body.length).toBe(4);
+    expect(menu.body.length).toBe(6);
 
+    const bankuOkra = menu.body.find((i) => i.id === ITEM.bankuOkra);
+    const bankuTilapia = menu.body.find((i) => i.id === ITEM.bankuTilapia);
     const jollof = menu.body.find((i) => i.id === ITEM.jollof);
-    const palmWine = menu.body.find((i) => i.id === ITEM.palmWine);
-    expect(jollof.category_id).toBeNull();
-    expect(palmWine.category_id).toBe(2);
+
+    // Dishes in the deleted category keep their row with a null category.
+    expect(bankuOkra.category_id).toBeNull();
+    expect(bankuTilapia.category_id).toBeNull();
+    // Dishes in other categories are unaffected.
+    expect(jollof.category_id).toBe(3);
   });
 });

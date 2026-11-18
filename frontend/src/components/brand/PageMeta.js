@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 
 const BRAND = 'Afia Food Hub';
 const DEFAULT_DESCRIPTION =
-  'Order jollof, banku and okra, fufu and light soup, waakye and more — authentic Ghanaian food cooked to order and delivered across Accra.';
+  'Order banku, fufu, omotuo, kokonte and rice meals — authentic Ghanaian food cooked to order and delivered across Accra.';
 
 const setMeta = (selector, attrs) => {
   let el = document.head.querySelector(selector);

@@ -87,7 +87,7 @@ describe('the guest cart', () => {
 
   it('changes the quantity of a line', async () => {
     const agent = browser();
-    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.palmWine, quantity: 1 });
+    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.friedRice, quantity: 1 });
 
     const cart = await agent.get('/api/orders/cart');
     const lineId = cart.body.items[0].id;
@@ -101,7 +101,7 @@ describe('the guest cart', () => {
 
   it('removes a line', async () => {
     const agent = browser();
-    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.palmWine, quantity: 1 });
+    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.friedRice, quantity: 1 });
 
     const cart = await agent.get('/api/orders/cart');
     const lineId = cart.body.items[0].id;
@@ -115,7 +115,7 @@ describe('the guest cart', () => {
 
   it('removes a line when the quantity is set to zero', async () => {
     const agent = browser();
-    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.palmWine, quantity: 1 });
+    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.friedRice, quantity: 1 });
 
     const cart = await agent.get('/api/orders/cart');
     const lineId = cart.body.items[0].id;
@@ -128,7 +128,7 @@ describe('the guest cart', () => {
 
   it('empties the cart', async () => {
     const agent = browser();
-    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.palmWine, quantity: 1 });
+    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.friedRice, quantity: 1 });
 
     const res = await agent.delete('/api/orders/cart');
     expect(res.status).toBe(200);
@@ -140,7 +140,7 @@ describe('the guest cart', () => {
   it('refuses a dish that is unavailable', async () => {
     const agent = browser();
 
-    const res = await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.sobolo, quantity: 1 });
+    const res = await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.kokonteGroundnut, quantity: 1 });
 
     expect(res.status).toBe(400);
     expect(res.body.error.message).toMatch(/currently unavailable/);
@@ -159,7 +159,7 @@ describe('the guest cart', () => {
 
     const res = await agent
       .post('/api/orders/cart/items')
-      .send({ menuItemId: ITEM.palmWine, quantity: 1, price: 0.01 });
+      .send({ menuItemId: ITEM.friedRice, quantity: 1, price: 0.01 });
 
     expect(res.status).toBe(400);
   });
@@ -169,7 +169,7 @@ describe('the customer cart', () => {
   it('follows the customer, not the browser', async () => {
     const { agent } = await customerAgent();
 
-    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.palmWine, quantity: 1 });
+    await agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.friedRice, quantity: 1 });
 
     const cart = await agent.get('/api/orders/cart');
     expect(cart.body.items).toHaveLength(1);
@@ -179,7 +179,7 @@ describe('the customer cart', () => {
     const first = await customerAgent();
     const second = await customerAgent();
 
-    await first.agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.palmWine, quantity: 1 });
+    await first.agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.friedRice, quantity: 1 });
 
     const other = await second.agent.get('/api/orders/cart');
     expect(other.body.items).toHaveLength(0);
@@ -189,7 +189,7 @@ describe('the customer cart', () => {
     const first = await customerAgent();
     const second = await customerAgent();
 
-    await first.agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.palmWine, quantity: 1 });
+    await first.agent.post('/api/orders/cart/items').send({ menuItemId: ITEM.friedRice, quantity: 1 });
     const cart = await first.agent.get('/api/orders/cart');
     const lineId = cart.body.items[0].id;
 
@@ -224,7 +224,7 @@ describe('the merge when a guest signs up', () => {
     const { agent: customer, user } = await customerAgent();
 
     const guest = browser();
-    await guest.post('/api/orders/cart/items').send({ menuItemId: ITEM.palmWine, quantity: 3 });
+    await guest.post('/api/orders/cart/items').send({ menuItemId: ITEM.friedRice, quantity: 3 });
 
     const res = await guest.post('/api/auth/login').send({
       email: user.email,

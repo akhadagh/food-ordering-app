@@ -36,7 +36,7 @@ The full name therefore reads as a promise: *a prosperous meeting place for Ghan
 | Dimension | Positioning |
 |---|---|
 | **Who** | Accra residents and workers ordering lunch, dinner and weekend food — students, professionals, families. |
-| **What** | Authentic Ghanaian dishes — jollof, banku and okra, fufu and light soup, waakye, kenkey — cooked fresh and delivered. |
+| **What** | Authentic Ghanaian dishes — banku, fufu, omotuo, kokonte and rice meals — cooked fresh and delivered. |
 | **Why us** | Real Ghanaian cooking, made properly, delivered fast and tracked honestly. |
 | **How** | A warm, modern, trustworthy ordering experience that treats a bowl of soup as something worth care. |
 | **Voice** | Warm, confident, plain-spoken Ghanaian hospitality. Never shouty, never corporate, never cute at the customer's expense. |
@@ -438,7 +438,7 @@ single-colour bowl-arc "A", no steam detail) so they stay legible.
 | Placeholder | Brand-tinted `clay-50` block with the icon-only emblem at 40 % opacity — **never a grey box, never an emoji** |
 | Lazy loading | `loading="lazy"` below the fold; `fetchpriority="high"` on the hero |
 | Responsive `srcset` | 400 / 800 / 1200 px widths, WebP with JPEG fallback |
-| Alt text | The dish name and its main ingredient — `"Waakye with stew and shito, served with boiled egg"` |
+| Alt text | The dish name and its main ingredient — `"Banku with Okra Soup, served with a rich okra stew"` |
 
 ---
 
@@ -484,7 +484,7 @@ rich food photograph occupying the right 55 %. Safe area: keep all text within t
 | `hero-home` | 1600×900, 800×1200, 1200×1200 | Homepage hero |
 | `promo-delivery` | 1600×600 | Delivery-focused promotional banner |
 | `promo-mobile-money` | 1600×600 | Payment-methods banner |
-| `category-banku`, `category-rice`, `category-local`, `category-drinks`, `category-sides` | 800×800 | Category tiles |
+| `category-banku`, `category-fufu`, `category-omotuo`, `category-kokonte`, `category-rice-dishes` | 800×800 | Category tiles |
 | `social-cover` | 1200×630 | Open Graph / Twitter / LinkedIn |
 | `social-avatar` | 400×400 | Social profile picture (emblem only) |
 | `about-kitchen` | 1200×800 | About / story section |
@@ -526,11 +526,11 @@ frontend/public/brand/
 │   ├── hero-home-800x1200.jpg
 │   ├── promo-delivery-1600x600.jpg
 │   ├── promo-mobile-money-1600x600.jpg
-│   ├── category-banku-800x800.jpg
-│   ├── category-rice-800x800.jpg
-│   ├── category-local-800x800.jpg
-│   ├── category-drinks-800x800.jpg
-│   ├── category-sides-800x800.jpg
+│   ├── category-banku.jpg
+│   ├── category-fufu.jpg
+│   ├── category-omotuo.jpg
+│   ├── category-kokonte.jpg
+│   ├── category-rice-dishes.jpg
 │   ├── about-kitchen-1200x800.jpg
 │   ├── social-cover-1200x630.jpg
 │   ├── social-avatar-400x400.jpg
@@ -573,7 +573,7 @@ frontend/public/brand/
 | **Loading screens** | Icon-only emblem with a slow gold steam pulse; never a blank white screen |
 | **Error pages** | 404 / 500 / offline states with the emblem, a plain-language explanation, a way forward |
 | **Browser title** | `Afia Food Hub — Ghanaian Food Delivered Hot` |
-| **Meta description** | `Order jollof, banku and okra, fufu and light soup, waakye and more — authentic Ghanaian food cooked to order and delivered across Accra.` |
+| **Meta description** | `Order banku, fufu, omotuo, kokonte and rice meals — authentic Ghanaian food cooked to order and delivered across Accra.` |
 | **Social metadata** | Open Graph + Twitter cards using `social-cover-1200x630.jpg` |
 | **Chatbot** | Branded header, Fraunces heading, Inter body, no invented claims; answers grounded in live menu data |
 
@@ -603,7 +603,7 @@ not copy-pasted:
 |---|---|
 | **Plain and warm** | "Your order is on its way." not "ORDER DISPATCHED 🚀" |
 | **State facts, do not inflate** | "Delivers in 30–45 minutes across Accra" — only if true |
-| **Name the dish properly** | "Banku with Okra Soup", "Fufu with Light Soup", "Waakye and Stew" |
+| **Name the dish properly** | "Banku with Okra Soup", "Fufu with Light Soup", "Omotuo with Groundnut Soup" |
 | **Prices are explicit** | "GH₵ 45.00" everywhere, including the cart |
 | **Explain, don't blame** | "We couldn't apply that code — it may have expired." not "INVALID PROMO" |
 | **Never invent** | If a fact is unknown, say "We'll confirm by phone" rather than guessing |

@@ -12,7 +12,7 @@ beforeEach(async () => {
 });
 
 const ORDER = {
-  items: [{ menuItemId: ITEM.palmWine, quantity: 1 }],
+  items: [{ menuItemId: ITEM.friedRice, quantity: 1 }],
   deliveryAddress: '12 Independence Avenue, Accra',
   customerPhone: '0241234567',
   paymentMethod: 'cash',

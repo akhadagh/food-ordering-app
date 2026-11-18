@@ -16,7 +16,7 @@ export const BRAND = {
   name: env('REACT_APP_BRAND_NAME') || 'Afia Food Hub',
   tagline: 'Real Ghanaian food, cooked to order and delivered hot.',
   shortDescription:
-    'Authentic Ghanaian dishes — jollof, banku and okra, fufu and light soup, waakye and kenkey — made fresh to order and delivered across Accra.',
+    'Authentic Ghanaian dishes — banku, fufu, omotuo, kokonte and rice meals — made fresh to order and delivered across Accra.',
   locale: 'en-GH',
   currency: 'GH₵',
 };

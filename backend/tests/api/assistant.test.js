@@ -33,7 +33,7 @@ describe('the assistant', () => {
   });
 
   it('does not offer a dish that is unavailable', async () => {
-    const res = await ask('is sobolo available');
+    const res = await ask('is kokonte with groundnut soup available');
 
     expect(res.status).toBe(200);
     expect(res.body.reply.toLowerCase()).toMatch(/not available|sold out/);
@@ -77,7 +77,7 @@ describe('the assistant', () => {
     await agent
       .post('/api/orders')
       .send({
-        items: [{ menuItemId: ITEM.palmWine, quantity: 1 }],
+        items: [{ menuItemId: ITEM.friedRice, quantity: 1 }],
         deliveryAddress: '12 Independence Avenue, Accra',
         customerPhone: '0241234567',
         paymentMethod: 'cash',

@@ -1,7 +1,7 @@
 # Afia Food Hub
 
-Food ordering and delivery for Ghana — jollof, banku and okra, fufu and light
-soup, waakye and more, cooked to order and delivered hot.
+Food ordering and delivery for Ghana — banku, fufu, omotuo, kokonte and rice
+meals, cooked to order and delivered hot.
 
 The application is a React single-page interface and a Node/Express API over
 PostgreSQL. The API owns the money: every price the customer sees is
