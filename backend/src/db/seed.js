@@ -384,7 +384,8 @@ async function seed() {
            stock_quantity, custom_options)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9::jsonb)
         ON CONFLICT (slug) DO UPDATE
-          SET name = EXCLUDED.name,
+          SET category_id = EXCLUDED.category_id,
+              name = EXCLUDED.name,
               description = EXCLUDED.description,
               price = EXCLUDED.price,
               image_url = EXCLUDED.image_url,
