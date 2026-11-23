@@ -737,7 +737,7 @@ partial, **7** blocked.
 
 | Check | Command | Result |
 |---|---|---|
-| Backend integration suite | `npm test --prefix backend -- --runInBand` | ✅ **250 passed**, 12 suites |
+| Backend integration suite | `npm test --prefix backend -- --runInBand` | ✅ **251 passed**, 12 suites |
 | Interface suite | `npm test --prefix frontend -- --watchAll=false` | ✅ **115 passed**, 12 suites |
 | Production build | `npm run build --prefix frontend` | ✅ Compiled successfully |
 | Security/authorisation audit | `npm run audit:security` | ✅ **12/12 checks passed**, 0 production advisories |

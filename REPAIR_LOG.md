@@ -438,3 +438,10 @@ The smoke test also showed unpriced, unpublished dishes in `/api/menu/items`.
 The public list now defaults to `is_available = true`; administrators retain
 visibility with `include_inactive`. A visitor cannot opt into drafts with
 `include_unavailable`.
+
+### Post-deploy fix — static metadata claim
+
+The served HTML still carried "delivered across Accra" in its meta description.
+`frontend/public/index.html` now states only the confirmed five-category offer,
+and the deployment contract asserts that no unconfirmed business claim is
+reintroduced into the static page.

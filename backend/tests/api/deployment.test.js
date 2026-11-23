@@ -191,6 +191,11 @@ describe('P1-13 · the environment', () => {
       expect(value === '' || /REPLACE|CHANGE|your-|example|placeholder/i.test(value)).toBe(true);
     }
   });
+
+  it('does not publish unconfirmed business claims in the static page', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'frontend/public/index.html'), 'utf8');
+    expect(html).not.toMatch(/Accra|500\+|4\.8 Rating|30[–-]45 minutes/i);
+  });
 });
 
 describe('the function and the local server ship the same dependencies', () => {
