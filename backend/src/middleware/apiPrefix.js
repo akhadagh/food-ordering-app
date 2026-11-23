@@ -21,16 +21,19 @@ export const API_PREFIX = '/api';
  * @param {string} prefix the prefix the application mounts its routes under
  * @returns {import('express').RequestHandler}
  */
-export const apiPrefix = (prefix = API_PREFIX) => (req, res, next) => {
-  const [pathname] = req.url.split('?');
+export const apiPrefix = (prefix = API_PREFIX) => (req, _res, next) => {
+  const url = new URL(req.url, 'http://localhost');
+  let { pathname } = url;
 
-  const alreadyPrefixed =
-    pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(`${prefix}?`);
+  // The Vercel `/api/:path*` rewrite keeps the real path but also passes the
+  // wildcard through as a `path` query parameter. Route schemas are strict,
+  // so that platform artefact must never reach them.
+  url.searchParams.delete('path');
 
-  if (!alreadyPrefixed) {
-    req.url = `${prefix}${req.url}`;
-  }
+  const alreadyPrefixed = pathname === prefix || pathname.startsWith(`${prefix}/`);
+  if (!alreadyPrefixed) pathname = `${prefix}${pathname}`;
 
+  req.url = `${pathname}${url.search}`;
   next();
 };
 

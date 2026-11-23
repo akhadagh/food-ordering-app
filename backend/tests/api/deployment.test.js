@@ -247,6 +247,14 @@ describe('the function answers on the path it is served at', () => {
     expect(req.url).toBe('/api/menu/items?limit=3');
   });
 
+  it('drops the path parameter injected by the Vercel rewrite', () => {
+    const middleware = apiPrefix();
+    const req = { url: '/api/menu/categories?path=categories&include_inactive=true' };
+
+    middleware(req, {}, () => {});
+    expect(req.url).toBe('/api/menu/categories?include_inactive=true');
+  });
+
   it('is idempotent', () => {
     const middleware = apiPrefix();
     const req = { url: '/api/health' };

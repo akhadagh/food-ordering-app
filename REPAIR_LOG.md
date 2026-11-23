@@ -423,3 +423,11 @@ tools/verify-browser-journeys.sh          # the browser journeys against a produ
 
 No production data, deployment or owner-confirmed price was invented or changed.
 All catalogue changes are reversible deactivations; order snapshots are intact.
+
+### Post-deploy fix — Vercel rewrite artefact
+
+The first production smoke test found that `/api/menu/categories` returned a
+validation error while `/api/health` worked. Vercel's `/api/:path*` rewrite
+keeps the real path but also injects the wildcard as a `path` query parameter,
+which the strict query schemas rejected. `apiPrefix.js` now removes that
+platform artefact before routing, with a regression test in `deployment.test.js`.
