@@ -39,6 +39,7 @@ const list = (key, fallback = []) => {
 };
 
 const DEV_PLACEHOLDER_SECRET = 'development-only-insecure-secret-change-me';
+const BLOB_READ_WRITE_TOKEN = str('BLOB_READ_WRITE_TOKEN');
 
 export const env = {
   nodeEnv: str('NODE_ENV', 'development'),
@@ -74,11 +75,15 @@ export const env = {
   currency: str('CURRENCY', 'GHS'),
   deliveryFee: num('DELIVERY_FEE', 5),
   freeDeliveryThreshold: num('FREE_DELIVERY_THRESHOLD', 0),
+  // 0 means no delivery-time promise is made. Only set this when the owner
+  // has confirmed a realistic kitchen-to-door time.
+  deliveryEstimateMinutes: num('DELIVERY_ESTIMATE_MINUTES', 0),
   minOrderValue: num('MIN_ORDER_VALUE', 0),
   deliveryZones: list('DELIVERY_ZONES', []),
 
-  uploadDriver: str('UPLOAD_DRIVER', 'local'),
+  uploadDriver: str('UPLOAD_DRIVER', BLOB_READ_WRITE_TOKEN ? 'blob' : 'local'),
   uploadBucket: str('UPLOAD_BUCKET', 'afia-food-hub-assets'),
+  blobReadWriteToken: BLOB_READ_WRITE_TOKEN,
   uploadPublicUrl: str('UPLOAD_PUBLIC_URL'),
   uploadMaxBytes: num('UPLOAD_MAX_BYTES', 5 * 1024 * 1024),
 
@@ -168,6 +173,10 @@ export function validateEnv({ strict = env.isProd } = {}) {
   }
   if (env.paymentProvider === 'hubtel' && !env.hubtelClientId) {
     PROBLEMS.push('HUBTEL_CLIENT_ID is required when PAYMENT_PROVIDER=hubtel.');
+  }
+
+  if (env.uploadDriver === 'blob' && !env.blobReadWriteToken) {
+    PROBLEMS.push('BLOB_READ_WRITE_TOKEN is required when UPLOAD_DRIVER=blob.');
   }
 
   if (env.uploadDriver === 'local' && strict) {

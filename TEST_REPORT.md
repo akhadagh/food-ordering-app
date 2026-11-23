@@ -697,3 +697,63 @@ a test that fails against the old behaviour.**
 Cumulative across TR-000, TR-001 and TR-002: **592** checks executed, **556**
 passed, **21** failed (findings, all closed by Sprints 2 and 3), **8**
 partial, **7** blocked.
+
+---
+
+## 25. Food specialisation verification — 2026-11-19
+
+**Branch:** `feature/afia-food-specialisation-final-2026`
+
+| Check | Command | Result |
+|---|---|---|
+| Backend integration suite | `npm run test:backend` | ✅ **245 passed**, 12 suites |
+| Interface suite | `npm run test:frontend -- --watchAll=false` | ✅ **113 passed**, 11 suites |
+| Production build | `npm run build` | ✅ Compiled successfully |
+| Seed photo paths | script check against `backend/src/db/seed.js` | ✅ 32/32 files exist |
+| Security audit | `npm run audit:security` | ✅ 12/12 checks passed |
+
+### New behaviour covered
+
+- Rejects a category outside Banku, Fufu, Omotuo, Kokonte and Rice dishes.
+- Rejects a standalone dish name outside the approved catalogue.
+- Refuses deletion of the five structural categories and renaming outside the
+  catalogue.
+- Creates and serves multiple dish photos, including cover and reorder APIs.
+- Moves an order through `placed → preparing → delivered` and refuses moving a
+  delivered order backwards.
+- Refuses a customer who tries to change an order stage.
+- Keeps the interface status-transition table equal to the API's table.
+
+### Still blocked
+
+- Production deployment and Neon credentials.
+- Real prices for the unconfirmed draft dishes.
+- S3-compatible credentials for production image uploads; local storage is
+  development-only.
+
+## 26. Final review verification — 2026-11-23
+
+**Branch:** `fix/afia-final-review-corrections-2026`
+
+| Check | Command | Result |
+|---|---|---|
+| Backend integration suite | `npm test --prefix backend -- --runInBand` | ✅ **248 passed**, 12 suites |
+| Interface suite | `npm test --prefix frontend -- --watchAll=false` | ✅ **115 passed**, 12 suites |
+| Production build | `npm run build --prefix frontend` | ✅ Compiled successfully |
+| Security/authorisation audit | `npm run audit:security` | ✅ **12/12 checks passed**, 0 production advisories |
+| Migration file | `backend/src/db/migrations/006_catalogue_reconciliation.sql` | ✅ Reconciles by deactivation, never DELETE |
+
+### Newly covered behaviour
+
+- Rejects a dish with no category, or a published dish with an unconfirmed price.
+- Hides dishes in inactive/unapproved categories from the public menu, while an
+  administrator can still see them with `include_inactive`.
+- Refuses an order paid by an online method while no online provider is configured.
+- Homepage advertises only the payment methods returned by the backend, and makes
+  no Accra/hours claim when those environment values are blank.
+
+### Not executed
+
+- The browser/e2e journeys still need a disposable staging database and a built
+  frontend; they were not run against the production Neon connection in `.env.local`.
+- No deployment was attempted.

@@ -204,7 +204,11 @@ GET /api/auth/availability?email=kwame@example.com
 ### `GET /api/menu/categories`
 
 `200` with an array of categories: `id`, `name`, `slug`, `description`,
-`sort_order`, `is_active`.
+`sort_order`, `is_active`. Add `?include_inactive=true` as an administrator
+to see hidden categories.
+
+The only categories are **Banku**, **Fufu**, **Omotuo**, **Kokonte** and
+**Rice dishes**. Creating, renaming or deleting outside that list is refused.
 
 ### `GET /api/menu/items`
 
@@ -227,6 +231,10 @@ GET /api/menu/items?category_id=1&search=jollof&limit=20
     "description": "Smoky Ghanaian jollof rice.",
     "price": "40.00",
     "image_url": "/brand/food/jollof-rice.jpg",
+    "images": [
+      { "id": 3, "url": "/brand/food/jollof-rice.jpg", "sort_order": 0, "is_cover": true },
+      { "id": 4, "url": "/brand/food/rice/jollof-3.jpg", "sort_order": 1, "is_cover": false }
+    ],
     "is_available": true,
     "is_featured": true,
     "stock_quantity": 0,
@@ -282,7 +290,8 @@ payment through (finding **P0-05**).
 | `category_id` | integer | Required. |
 | `description` | string | Optional. |
 | `price` | number | Required. The price of the dish. |
-| `image` | file | Optional. JPEG, PNG or WebP, up to `UPLOAD_MAX_BYTES`. |
+| `image` | file | Optional. One JPEG, PNG, WebP or GIF, up to `UPLOAD_MAX_BYTES`. |
+| `images` | file[] | Optional. Up to eight more photographs of the same dish. |
 | `is_available` | boolean | Optional, default `true`. |
 | `is_featured` | boolean | Optional, default `false`. |
 | `stock_quantity` | integer | Optional. `0` means unlimited. |
@@ -296,11 +305,33 @@ The same fields, all optional. `200` with the updated dish.
 
 ### `DELETE /api/menu/items/:id` — administrator
 
-`200` `{ "message": "Menu item deleted." }`.
+`200` `{ "message": "Menu item deleted." }`. Existing orders keep their own
+snapshot of the dish name and price.
+
+### `POST /api/menu/items/:id/images` — administrator
+
+`multipart/form-data` with one or more `images` files. The first uploaded
+photograph becomes the cover when the dish has no cover yet. `201` with the
+updated dish.
+
+### `PUT /api/menu/items/:id/images` — administrator
+
+```json
+{ "images": [{ "id": 4, "sort_order": 0, "is_cover": true }] }
+```
+
+Reorders the existing gallery and chooses the cover.
+
+### `DELETE /api/menu/items/:id/images/:imageId` — administrator
+
+Removes one photograph from the dish. If it was the cover, the next
+photograph becomes the cover.
 
 ### `POST /api/menu/categories` · `PUT /api/menu/categories/:id` · `DELETE /api/menu/categories/:id` — administrator
 
-`name`, `slug`, `description` and `sort_order`.
+`name`, `slug`, `description` and `sort_order`. Only the five approved
+categories exist. Their names and slugs cannot be changed, they cannot be
+deleted, and they can be hidden with `is_active: false`.
 
 ---
 
@@ -437,7 +468,7 @@ An unknown or expired code answers `200` with `{ "valid": false, "message": "…
 | `items` | yes | 1–60 lines. `price` and `name` are not accepted. |
 | `deliveryAddress` | yes | 4–400 characters. |
 | `customerPhone` | yes | 6–30 characters. |
-| `paymentMethod` | yes | `mtn_momo`, `telecel_cash`, `airteltigo_money`, `card` or `cash`. |
+| `paymentMethod` | yes | Only a method currently returned by `GET /api/menu/payment-methods` is accepted. With no online provider configured this is `cash` only; attempts to use an offline online method are refused with 422. |
 | `fulfilmentType` | no | `delivery` (default) or `pickup`. |
 | `deliveryNotes` | no | Up to 500 characters. |
 | `promoCode` | no | Validated against the database. |
@@ -577,6 +608,18 @@ the two are reported separately because they are not the same number.
 
 Query parameters: `page`, `limit`, `status`, `search`.
 `200` `{ "orders": [ … ], "total": 12, "page": 1, "totalPages": 3 }`.
+
+### `PUT /api/admin/orders/:id/stage`
+
+```json
+{ "stage": "preparing", "note": "On the stove" }
+```
+
+`stage` is one of `placed`, `preparing`, `delivered` — the three stages the
+customer sees. The API still records the detailed internal statuses
+(`confirmed`, `ready`, `out_for_delivery`) while walking the legal
+transitions, so order history is never rewritten. Moving a delivered order
+back to an earlier stage is refused with `409`.
 
 ### `PUT /api/admin/orders/:id/status`
 

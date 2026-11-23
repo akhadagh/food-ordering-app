@@ -291,8 +291,9 @@ separately for **Production**, **Preview** and **Development**.
 | `FRONTEND_URL` | `https://afia-food-hub.vercel.app` | Comma-separated for multiple |
 | `CORS_ORIGINS` | `https://afia-food-hub.vercel.app` | |
 | `REACT_APP_API_URL` | `https://afia-food-hub.vercel.app/api` | **Must not be localhost** |
-| `UPLOAD_DRIVER` | `neon` or `vercel` | Not `local` in production |
-| `UPLOAD_BUCKET` / `UPLOAD_PUBLIC_URL` | bucket + public base URL | |
+| `UPLOAD_DRIVER` | `blob` (Vercel Blob), `s3`, or `local` in development | `blob` is selected automatically when `BLOB_READ_WRITE_TOKEN` is present |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob token | Provided by the Vercel Blob integration |
+| `UPLOAD_BUCKET` / `UPLOAD_PUBLIC_URL` | bucket + public base URL | For the `s3` driver |
 | `PAYMENT_PROVIDER` | `paystack` (or `disabled` until credentials exist) | |
 | `PAYSTACK_SECRET_KEY` | secret key | Required when the provider is enabled |
 | `PAYSTACK_WEBHOOK_SECRET` | webhook secret | Required for webhook verification |
@@ -339,13 +340,14 @@ vercel --prod
 ### 5.1 Paystack (recommended)
 
 Paystack supports **MTN Mobile Money, Telecel Cash, AirtelTigo Money** and cards in Ghana on one
-integration.
+integration. Until a provider is configured and verified, the API accepts and advertises **Cash on
+Delivery only**; no online method is shown at checkout or on the homepage.
 
 1. Create an account at <https://paystack.com> and complete business verification.
 2. Copy the **secret key** from Dashboard → Settings → API Keys & Keys.
 3. Copy the **public key**.
 4. Register the webhook URL:
-   `https://afia-food-hub.vercel.app/api/payments/webhook`
+   `https://afia-food-hub.vercel.app/api/payments/paystack/webhook`
 5. Copy the generated **webhook secret** into `PAYSTACK_WEBHOOK_SECRET`.
 6. Set `PAYMENT_PROVIDER=paystack` in Vercel and redeploy.
 
@@ -377,21 +379,23 @@ payment.** Finding **P0-05** must not be reintroduced in any form.
 ## 6. Object storage for menu images
 
 The local filesystem is ephemeral on Vercel — images uploaded to `/tmp` do not survive a cold
-start. Use Neon Object Storage or Vercel Blob.
+start. The production driver is **Vercel Blob**.
+
+1. In the Vercel project, open **Storage → Blob** and connect a store.
+2. Vercel adds `BLOB_READ_WRITE_TOKEN` to the project environment.
+3. Redeploy. The API selects `UPLOAD_DRIVER=blob` automatically when the token is present.
 
 ```bash
-# Neon Object Storage — create a bucket
-neonctl storage create --name afia-food-hub-assets --region <region> --access public
+vercel env ls production        # BLOB_READ_WRITE_TOKEN should be listed
+vercel --prod                   # redeploy so the function receives it
 ```
 
-```
-UPLOAD_DRIVER=neon
-UPLOAD_BUCKET=afia-food-hub-assets
-UPLOAD_PUBLIC_URL=https://<account>.storage.<region>.neon.tech/afia-food-hub-assets
-```
+The `s3` driver remains available for Neon Object Storage, R2 or MinIO by setting
+`UPLOAD_DRIVER=s3` and the `S3_*` variables.
 
-Uploads must be validated server-side: MIME allowlist (`image/jpeg`, `image/png`, `image/webp`),
-size limit (`UPLOAD_MAX_BYTES`), and randomised filenames. Finding **P1-02**.
+Uploads are validated server-side: MIME allowlist (`image/jpeg`, `image/png`, `image/webp`,
+`image/gif`), byte-signature check, size limit (`UPLOAD_MAX_BYTES`), and randomised filenames.
+Finding **P1-02**.
 
 ---
 
@@ -482,7 +486,7 @@ the live URL and observed to pass.
 | Cold-start latency | Unpooled connections | Neon pooled URL + the serverless driver |
 | Webhook returns `401` | Signature not verified or wrong secret | Check `PAYSTACK_WEBHOOK_SECRET`; the raw body must be used for verification |
 | Payments never complete | Provider disabled or credentials missing | Check `PAYMENT_PROVIDER` and the keys; until then use COD |
-| Images disappear after a while | Written to the local filesystem | Set `UPLOAD_DRIVER=neon` (or `vercel`) |
+| Images disappear after a while | Written to the local filesystem | Set `BLOB_READ_WRITE_TOKEN` (the `blob` driver is then selected automatically) |
 | `500` on the admin dashboard | A null statistic | `Number(value ?? 0)` on every figure — tracked as **P2-15** |
 | Migrations fail on an existing database | Non-idempotent DDL | Migrations must use `IF NOT EXISTS` / guarded DDL |
 | Neon branch has the old data after migrating | Migrations ran against the wrong URL | Check `DATABASE_URL_DIRECT` — it must point at the branch |

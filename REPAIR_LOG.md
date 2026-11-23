@@ -7,6 +7,35 @@ Every entry states what was **actually executed and observed** — not what was 
 
 ---
 
+
+## 2026-11-19 — Food specialisation, multi-photo dishes and three order stages
+
+**Branch:** `feature/afia-food-specialisation-final-2026`
+**Base:** `main` at `045ca4b`
+**Outcome:** ✅ Complete in the working tree; not deployed
+
+### What changed
+
+| Area | Change |
+|---|---|
+| Catalogue | Added `backend/src/config/catalogue.js` as the single source of truth for the five approved categories (Banku, Fufu, Omotuo, Kokonte, Rice dishes). The service now refuses categories and standalone dish names outside that catalogue. |
+| Seed | Expanded to 20 dishes. Unconfirmed dishes are seeded unavailable with price `0`; re-seeding preserves an existing price, availability and stock. Legacy categories and forbidden dish names are removed. |
+| Dish photos | Added migration `005_menu_item_images.sql`, up to eight photos per dish, cover-photo uniqueness, reorder/delete endpoints, and a frontend auto-rotating carousel. |
+| Photography | Downloaded 32 licensed Wikimedia Commons images (CC0 / CC BY / CC BY-SA) for the hero and dish galleries. Attribution is recorded in `frontend/public/brand/PHOTO-CREDITS.md`. |
+| Order stages | Added `PUT /api/admin/orders/:id/stage` with `placed`, `preparing`, `delivered`. The service walks the existing legal internal transitions, so history is never rewritten. Admin and customer screens now show three stages. |
+| Honest copy | Removed unconfirmed Mobile Money/card claims, the blanket "Delivered across Accra" claim, and delivery-time claims from the homepage and brand description. Only cash on delivery, delivery/pickup and configured business facts are shown. |
+
+### Verification
+
+| Command | Result |
+|---|---|
+| `npm run test:backend` | ✅ 245 passed, 12 suites |
+| `npm run test:frontend -- --watchAll=false` | ✅ 113 passed, 11 suites |
+| `npm run build` | ✅ Compiled successfully |
+| Image path check | ✅ All 32 seed image paths exist |
+| `npm run audit:security` | ✅ 12/12 checks passed |
+
+
 ## 2026-11-11 — Sprint 0: Discovery and preparation
 
 **Branch:** `feature/afia-food-hub-transformation`
@@ -376,3 +405,21 @@ npm run audit:security                    # the security audit, with the authori
 tools/verify-clean-install.sh             # the clean-install check
 tools/verify-browser-journeys.sh          # the browser journeys against a production build
 ```
+
+## 26. Final independent review corrections — 2026-11-23
+
+**Branch:** `fix/afia-final-review-corrections-2026`
+
+| Area | What was wrong | Correction |
+|---|---|---|
+| Catalogue enforcement | A dish could be created with no category, or published with an unconfirmed (zero) price; a published orphan item could still be edited | `menu.service.js` now requires an approved category for every dish, refuses publication without a positive confirmed price, and validates the final state on update |
+| Public catalogue | Dishes in inactive or unapproved categories were still returned by the public menu and single-item endpoint | `listItems`, `listCategories` and `getItem` are scoped to approved, active categories; `include_inactive` only works for an authenticated administrator |
+| Reconciliation | Seed and migration used hard-coded DELETE lists, and no migration existed for an already-deployed database | Migration `006_catalogue_reconciliation.sql` and the seed now deactivate (never delete) unapproved categories, orphaned dishes, excluded product names and unpriced dishes |
+| Payments | Orders could be placed with `mtn_momo` even though no online provider is configured | Order creation validates the method against `availablePaymentMethods()`; only cash is accepted today, and the tests were updated accordingly |
+| Delivery estimate | Every order was given a fabricated 45-minute promise | `DELIVERY_ESTIMATE_MINUTES=0` by default; tracking shows no ETA until the owner configures one |
+| Homepage | Hardcoded cash-only copy, "Popular dishes", "Delivering to Accra", invented opening hours and a delivery promo image | The homepage reads payment methods from `/api/menu/payment-methods`, omits unconfirmed business facts, and uses the kitchen photograph for its CTA; a new `HomePage.test.js` locks this in |
+| Credits | `PHOTO-CREDITS.md` used Commons titles, duplicated two sources and omitted `jollof-chicken-1.jpg` and the hero photograph | Rewritten with local paths and verified licences; `tools/fetch-brand-photos.py` now lists every delivered crop |
+| Configuration | `.env.example` shipped `DELIVERY_ZONES=Accra` and invented business hours | Both are blank with an explanatory comment, and `DELIVERY_ESTIMATE_MINUTES` is documented as 0/off |
+
+No production data, deployment or owner-confirmed price was invented or changed.
+All catalogue changes are reversible deactivations; order snapshots are intact.

@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validate, field } from '../middleware/validate.js';
-import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js';
 import { writeLimiter } from '../middleware/rateLimit.js';
-import { uploadImage } from '../middleware/upload.js';
+import { uploadMenuImages, uploadedFiles } from '../middleware/upload.js';
 import * as menu from '../services/menu.service.js';
 import { storeImage } from '../services/storage.service.js';
+import { withTransaction } from '../config/db.js';
 import { getProvider, availablePaymentMethods } from '../payments/index.js';
+import { badRequest } from '../utils/errors.js';
 
 const router = Router();
 
@@ -18,19 +20,28 @@ const listSchema = z.object({
   category: z.string().trim().max(120).optional(),
   is_featured: field.optionalBool(),
   is_available: field.optionalBool(),
+  include_inactive: field.optionalBool(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });
 
-router.get('/categories', async (_req, res, next) => {
-  try {
-    res.json(await menu.listCategories());
-  } catch (err) {
-    next(err);
-  }
-});
+const wantsInactive = (req) =>
+  Boolean(req.validatedQuery?.include_inactive) && req.user?.role === 'admin';
 
-router.get('/items', validate({ query: listSchema }), async (req, res, next) => {
+router.get(
+  '/categories',
+  optionalAuth,
+  validate({ query: z.object({ include_inactive: field.optionalBool() }).strict() }),
+  async (req, res, next) => {
+    try {
+      res.json(await menu.listCategories({ includeInactive: wantsInactive(req) }));
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.get('/items', optionalAuth, validate({ query: listSchema }), async (req, res, next) => {
   try {
     const q = req.validatedQuery || {};
     const result = await menu.listItems({
@@ -39,6 +50,7 @@ router.get('/items', validate({ query: listSchema }), async (req, res, next) => 
       categorySlug: q.category,
       featured: q.is_featured,
       available: q.is_available,
+      includeInactiveCategories: wantsInactive(req),
       limit: q.limit,
       offset: q.offset,
     });
@@ -48,13 +60,18 @@ router.get('/items', validate({ query: listSchema }), async (req, res, next) => 
   }
 });
 
-router.get('/items/:id', validate({ params: z.object({ id: field.id() }) }), async (req, res, next) => {
-  try {
-    res.json(await menu.getItem(req.params.id));
-  } catch (err) {
-    next(err);
+router.get(
+  '/items/:id',
+  optionalAuth,
+  validate({ params: z.object({ id: field.id() }) }),
+  async (req, res, next) => {
+    try {
+      res.json(await menu.getItem(req.params.id, { includeInactive: req.user?.role === 'admin' }));
+    } catch (err) {
+      next(err);
+    }
   }
-});
+);
 
 /** The payment methods the checkout can actually offer right now. */
 router.get('/payment-methods', (_req, res) => {
@@ -80,6 +97,7 @@ const itemSchema = z
     is_featured: field.bool().optional(),
     stock_quantity: z.coerce.number().int().min(0).max(100000).optional(),
     custom_options: z.array(z.record(z.any())).max(20).optional(),
+    images: z.array(z.any()).max(20).optional(),
   })
   .strict();
 
@@ -88,17 +106,20 @@ router.post(
   requireAuth,
   requireAdmin,
   writeLimiter,
-  uploadImage,
+  uploadMenuImages,
   async (req, res, next) => {
     try {
       const body = { ...req.body };
-      if (req.file) {
-        const stored = await storeImage(req.file);
-        body.image_url = stored.url;
+      const files = uploadedFiles(req);
+      if (files.length) {
+        const stored = [];
+        for (const file of files) stored.push(await storeImage(file));
+        body.images = stored.map((entry) => entry.url);
+        body.image_url = stored[0].url;
       }
       const parsed = itemSchema.parse(body);
       const id = await menu.createItem(parsed);
-      res.status(201).json(await menu.getItem(id));
+      res.status(201).json(await menu.getItem(id, { includeInactive: true }));
     } catch (err) {
       next(err);
     }
@@ -112,18 +133,104 @@ router.put(
   requireAuth,
   requireAdmin,
   writeLimiter,
-  uploadImage,
+  uploadMenuImages,
   validate({ params: z.object({ id: field.id() }) }),
   async (req, res, next) => {
     try {
       const body = { ...req.body };
-      if (req.file) {
-        const stored = await storeImage(req.file);
-        body.image_url = stored.url;
-      }
+      const files = uploadedFiles(req);
       const parsed = itemUpdateSchema.parse(body);
-      await menu.updateItem(req.params.id, parsed);
-      res.json(await menu.getItem(req.params.id));
+      await withTransaction(async (client) => {
+        await menu.updateItem(req.params.id, parsed, client);
+        if (files.length) {
+          const urls = [];
+          for (const file of files) {
+            const stored = await storeImage(file);
+            urls.push(stored.url);
+          }
+          await menu.addItemImages(req.params.id, urls, client);
+        }
+      });
+      res.json(await menu.getItem(req.params.id, { includeInactive: true }));
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.post(
+  '/items/:id/images',
+  requireAuth,
+  requireAdmin,
+  writeLimiter,
+  uploadMenuImages,
+  validate({ params: z.object({ id: field.id() }) }),
+  async (req, res, next) => {
+    try {
+      const files = uploadedFiles(req);
+      if (!files.length) throw badRequest('Choose at least one photo to upload.');
+      const urls = [];
+      for (const file of files) {
+        const stored = await storeImage(file);
+        urls.push(stored.url);
+      }
+      await withTransaction(async (client) => {
+        await menu.addItemImages(req.params.id, urls, client);
+      });
+      res.status(201).json(await menu.getItem(req.params.id, { includeInactive: true }));
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+const imageOrderSchema = z
+  .object({
+    images: z
+      .array(
+        z
+          .object({
+            id: field.id(),
+            sort_order: z.coerce.number().int().min(0).max(999).optional(),
+            is_cover: z.boolean().optional(),
+          })
+          .strict()
+      )
+      .min(1)
+      .max(20),
+  })
+  .strict();
+
+router.put(
+  '/items/:id/images',
+  requireAuth,
+  requireAdmin,
+  writeLimiter,
+  validate({ params: z.object({ id: field.id() }), body: imageOrderSchema }),
+  async (req, res, next) => {
+    try {
+      await withTransaction(async (client) => {
+        await menu.reorderItemImages(req.params.id, req.body.images, client);
+      });
+      res.json(await menu.getItem(req.params.id, { includeInactive: true }));
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.delete(
+  '/items/:id/images/:imageId',
+  requireAuth,
+  requireAdmin,
+  writeLimiter,
+  validate({ params: z.object({ id: field.id(), imageId: field.id() }) }),
+  async (req, res, next) => {
+    try {
+      await withTransaction(async (client) => {
+        await menu.deleteItemImage(req.params.id, req.params.imageId, client);
+      });
+      res.json(await menu.getItem(req.params.id, { includeInactive: true }));
     } catch (err) {
       next(err);
     }

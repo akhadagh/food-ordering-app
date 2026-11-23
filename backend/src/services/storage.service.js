@@ -16,7 +16,8 @@ import { signRequest } from '../utils/s3-signature.js';
  *
  * Drivers:
  *   local - filesystem, development only
- *   s3   - S3-compatible object storage (Neon Object Storage, R2, MinIO)
+ *   blob  - Vercel Blob (the production default when BLOB_READ_WRITE_TOKEN is set)
+ *   s3    - S3-compatible object storage (Neon Object Storage, R2, MinIO)
  */
 
 const ALLOWED_MIME = {
@@ -127,10 +128,56 @@ async function storeS3(file) {
   return { url: publicBase ? `${publicBase}/${key}` : url, key };
 }
 
+/* ---------------------------------------------------------------- blob -- */
+
+async function storeBlob(file) {
+  if (!env.blobReadWriteToken) {
+    throw unprocessable('Image storage is not configured right now.');
+  }
+
+  const key = `menu/${crypto.randomUUID()}-${safeName(file.originalname)}`;
+  const endpoint = new URL('https://blob.vercel-storage.com/');
+  endpoint.searchParams.set('pathname', key);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${env.blobReadWriteToken}`,
+        'content-type': file.mimetype,
+        'x-content-type': file.mimetype,
+        'x-add-random-suffix': '0',
+        'x-vercel-blob-access': 'public',
+      },
+      body: file.buffer,
+    });
+    const raw = await response.text();
+    let blob = {};
+    try {
+      blob = raw ? JSON.parse(raw) : {};
+    } catch {
+      blob = {};
+    }
+    if (!response.ok || !blob.url) {
+      logger.error('storage.blob_upload_failed', {
+        status: response.status,
+        body: raw.slice(0, 300),
+      });
+      throw unprocessable('We could not save that image. Please try again.');
+    }
+    return { url: blob.url, key: blob.pathname || key };
+  } catch (err) {
+    if (err.status === 422) throw err;
+    logger.error('storage.blob_upload_failed', { message: err.message });
+    throw unprocessable('We could not save that image. Please try again.');
+  }
+}
+
 /* ---------------------------------------------------------------------- */
 
 export async function storeImage(file) {
   validateImage(file);
+  if (env.uploadDriver === 'blob') return storeBlob(file);
   if (env.uploadDriver === 's3') return storeS3(file);
   if (env.uploadDriver === 'local') {
     if (env.isProd) {

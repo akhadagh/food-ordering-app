@@ -5,13 +5,13 @@ import { menuAPI, cartAPI, apiErrorMessage } from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  BrandLogo,
   BrandPrice,
   BrandErrorState,
   BrandEmptyState,
   PageMeta,
 } from '../components/brand';
 import { Search, Plus, Minus, ShoppingCart, X, SlidersHorizontal } from 'lucide-react';
+import FoodImageCarousel from '../components/menu/FoodImageCarousel';
 import toast from 'react-hot-toast';
 
 const SORTS = [
@@ -225,7 +225,7 @@ const MenuPage = () => {
 
       {/* --------------------------------------------------------- results */}
       {isLoading && (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid auto-rows-fr grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="card overflow-hidden">
               <div className="skeleton h-44 rounded-none" />
@@ -261,30 +261,24 @@ const MenuPage = () => {
       )}
 
       {sorted.length > 0 && (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid auto-rows-fr grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {sorted.map((item) => (
-            <article key={item.id} className="card-interactive group overflow-hidden">
-              <div className="media h-44">
-                {item.image_url ? (
-                  <img
-                    src={item.image_url}
-                    alt={item.name}
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-clay-50">
-                    <BrandLogo variant="icon" height={52} className="opacity-25" />
-                  </div>
-                )}
+            <article key={item.id} className="card-interactive group flex h-full flex-col overflow-hidden">
+              <div className="relative">
+                <FoodImageCarousel item={item} alt={item.name} heightClass="h-44" />
                 {item.is_featured && (
-                  <span className="absolute left-3 top-3 rounded-pill bg-primary-500 px-2.5 py-1 text-xs font-semibold text-white">
+                  <span className="absolute left-3 top-3 z-10 rounded-pill bg-primary-500 px-2.5 py-1 text-xs font-semibold text-white">
                     Featured
+                  </span>
+                )}
+                {item.images?.length > 1 && (
+                  <span className="absolute right-3 top-3 z-10 rounded-pill bg-bamboo-900/70 px-2 py-1 text-[0.6875rem] font-semibold text-white backdrop-blur">
+                    {item.images.length} photos
                   </span>
                 )}
               </div>
 
-              <div className="p-5">
+              <div className="flex flex-1 flex-col p-5">
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="font-display text-lg leading-snug text-bamboo-900">
                     {item.name}
@@ -297,13 +291,13 @@ const MenuPage = () => {
                   </p>
                 )}
                 {item.category_name && (
-                  <span className="badge-neutral mt-3">{item.category_name}</span>
+                  <span className="badge-neutral mt-3 self-start">{item.category_name}</span>
                 )}
                 <button
                   type="button"
                   onClick={() => openItem(item)}
                   disabled={adding}
-                  className="btn-primary mt-4 w-full"
+                  className="btn-primary mt-auto w-full pt-2.5"
                 >
                   <Plus size={16} aria-hidden="true" />
                   {item.custom_options?.length ? 'Choose options' : 'Add to cart'}
@@ -328,19 +322,11 @@ const MenuPage = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative">
-              <div className="media h-40">
-                {selectedItem.image_url ? (
-                  <img
-                    src={selectedItem.image_url}
-                    alt={selectedItem.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-clay-50">
-                    <BrandLogo variant="icon" height={56} className="opacity-25" />
-                  </div>
-                )}
-              </div>
+              <FoodImageCarousel
+                item={selectedItem}
+                alt={selectedItem.name}
+                heightClass="h-44"
+              />
               <button
                 type="button"
                 onClick={() => setSelectedItem(null)}

@@ -30,12 +30,12 @@ The full name therefore reads as a promise: *a prosperous meeting place for Ghan
 
 ### 1.2 Positioning
 
-> **Afia Food Hub is the Accra kitchen door that never closes.**
-> Real Ghanaian food, cooked to order and brought to your table while it's still hot.
+> **Real Ghanaian food, cooked to order.**
+> Banku, fufu, omotuo, kokonte and rice — made fresh and delivered or ready for pickup.
 
 | Dimension | Positioning |
 |---|---|
-| **Who** | Accra residents and workers ordering lunch, dinner and weekend food — students, professionals, families. |
+| **Who** | Ghanaian diners ordering lunch, dinner and weekend food — students, professionals, families. Delivery coverage is stated only when the owner configures it. |
 | **What** | Authentic Ghanaian dishes — banku, fufu, omotuo, kokonte and rice meals — cooked fresh and delivered. |
 | **Why us** | Real Ghanaian cooking, made properly, delivered fast and tracked honestly. |
 | **How** | A warm, modern, trustworthy ordering experience that treats a bowl of soup as something worth care. |
@@ -573,7 +573,7 @@ frontend/public/brand/
 | **Loading screens** | Icon-only emblem with a slow gold steam pulse; never a blank white screen |
 | **Error pages** | 404 / 500 / offline states with the emblem, a plain-language explanation, a way forward |
 | **Browser title** | `Afia Food Hub — Ghanaian Food Delivered Hot` |
-| **Meta description** | `Order banku, fufu, omotuo, kokonte and rice meals — authentic Ghanaian food cooked to order and delivered across Accra.` |
+| **Meta description** | `Order banku, fufu, omotuo, kokonte and rice meals — authentic Ghanaian food cooked to order.` |
 | **Social metadata** | Open Graph + Twitter cards using `social-cover-1200x630.jpg` |
 | **Chatbot** | Branded header, Fraunces heading, Inter body, no invented claims; answers grounded in live menu data |
 
@@ -602,7 +602,7 @@ not copy-pasted:
 | Principle | Example |
 |---|---|
 | **Plain and warm** | "Your order is on its way." not "ORDER DISPATCHED 🚀" |
-| **State facts, do not inflate** | "Delivers in 30–45 minutes across Accra" — only if true |
+| **State facts, do not inflate** | "Delivering to {the zones the owner configured}" — only when that value is set |
 | **Name the dish properly** | "Banku with Okra Soup", "Fufu with Light Soup", "Omotuo with Groundnut Soup" |
 | **Prices are explicit** | "GH₵ 45.00" everywhere, including the cart |
 | **Explain, don't blame** | "We couldn't apply that code — it may have expired." not "INVALID PROMO" |
@@ -620,10 +620,10 @@ not copy-pasted:
 | Order number | "Order ID", "Ref" |
 | Delivery fee | "Delivery charge", "Shipping" |
 
-> **Operator naming note.** The current site lists *Vodafone Cash*. In Ghana, Vodafone Ghana was
-> rebranded **Telecel** in 2023. The payment provider's canonical list is authoritative — the
-> menu option should read "Telecel Cash" with the underlying payment channel still being
-> Vodafone, and the exact label confirmed against the provider's API during Sprint 5.
+> **Operator naming note.** In Ghana, Vodafone Ghana was rebranded **Telecel** in 2023. When a
+> provider is configured, the canonical label from `/api/menu/payment-methods` is authoritative —
+> show only those methods, with "Telecel Cash" as the canonical name. With no provider configured,
+> the only valid method is Cash on Delivery; never advertise an offline method in static copy.
 
 ---
 

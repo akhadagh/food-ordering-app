@@ -92,13 +92,16 @@ export const authAPI = {
 /* ------------------------------------------------------------------ menu -- */
 
 export const menuAPI = {
-  getCategories: () => api.get('/menu/categories'),
+  getCategories: (params) => api.get('/menu/categories', { params }),
   getItems: (params) => api.get('/menu/items', { params }),
   getItem: (id) => api.get(`/menu/items/${id}`),
   getPaymentMethods: () => api.get('/menu/payment-methods'),
   createItem: (data, config) => api.post('/menu/items', data, config),
   updateItem: (id, data, config) => api.put(`/menu/items/${id}`, data, config),
   deleteItem: (id) => api.delete(`/menu/items/${id}`),
+  addItemImages: (id, data) => api.post(`/menu/items/${id}/images`, data),
+  reorderItemImages: (id, images) => api.put(`/menu/items/${id}/images`, { images }),
+  deleteItemImage: (id, imageId) => api.delete(`/menu/items/${id}/images/${imageId}`),
   createCategory: (data) => api.post('/menu/categories', data),
   updateCategory: (id, data) => api.put(`/menu/categories/${id}`, data),
   deleteCategory: (id) => api.delete(`/menu/categories/${id}`),
@@ -134,6 +137,7 @@ export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard'),
   getOrders: (params) => api.get('/admin/orders', { params }),
   updateOrderStatus: (id, data) => api.put(`/admin/orders/${id}/status`, data),
+  updateOrderStage: (id, data) => api.put(`/admin/orders/${id}/stage`, data),
   refundOrder: (id, reason) => api.post(`/admin/orders/${id}/refund`, { reason }),
   getSalesData: (params) => api.get('/admin/sales', { params }),
   exportSalesCSV: (params) => api.get('/admin/sales/export', { params, responseType: 'blob' }),

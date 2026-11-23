@@ -34,16 +34,62 @@ MANIFEST = [
     ("kokonte-groundnut-soup", "File:Kokonte Dish.jpg",
      [("food/kokonte-groundnut-soup.jpg", 1200, 900)]),
     ("jollof-rice", "File:Ghana Jollof Rice with Chicken.jpg",
-     [("food/jollof-rice.jpg", 1200, 900)]),
+     [("food/jollof-rice.jpg", 1200, 900),
+      ("food/rice/jollof-chicken-1.jpg", 1200, 1500)]),
     ("fried-rice", "File:Ghanaian fried rice 1.jpg",
-     [("food/fried-rice.jpg", 1200, 900)]),
+     [("food/fried-rice.jpg", 1200, 900),
+      ("food/rice/fried-rice-2.jpg", 1200, 900)]),
+    # --- additional dish views (multi-photo cards) -------------------------
+    ("banku-okra-2", "File:Banku and okro.jpg",
+     [("food/banku/banku-okra-2.jpg", 1200, 900)]),
+    ("banku-okra-3", "File:Banku and okro stew 1.jpg",
+     [("food/banku/banku-okra-3.jpg", 1200, 900)]),
+    ("banku-okra-4", "File:Banku with okro stew and anchovies.jpg",
+     [("food/banku/banku-okra-4.jpg", 1200, 900)]),
+    ("banku-tilapia-2", "File:Banku and tilapia 1.jpg",
+     [("food/banku/banku-tilapia-2.jpg", 1200, 900)]),
+    ("banku-tilapia-3", "File:Grilled tilapia with banku.jpg",
+     [("food/banku/banku-tilapia-3.jpg", 1200, 900)]),
+    ("banku-groundnut-1", "File:Banku and groundnut soup 01.jpg",
+     [("food/banku/banku-groundnut-1.jpg", 1200, 900)]),
+    ("banku-groundnut-2", "File:Banku with Groundnut Soup.jpg",
+     [("food/banku/banku-groundnut-2.jpg", 1200, 900)]),
+    ("fufu-light-2", "File:Fufu and Light Soup with meat.jpg",
+     [("food/fufu/fufu-light-2.jpg", 1200, 900)]),
+    ("fufu-light-3", "File:Fufu and light soup in asanka.jpg",
+     [("food/fufu/fufu-light-3.jpg", 1200, 900)]),
+    ("fufu-groundnut-2", "File:Fufu with groundnut soup 1.jpg",
+     [("food/fufu/fufu-groundnut-2.jpg", 1200, 900)]),
+    ("fufu-groundnut-3", "File:Fufu in groundnut soup with fish.jpg",
+     [("food/fufu/fufu-groundnut-3.jpg", 1200, 900)]),
+    ("fufu-palmnut-1", "File:Fufu and palm nut soup.jpg",
+     [("food/fufu/fufu-palmnut-1.jpg", 1200, 900)]),
+    ("fufu-palmnut-2", "File:Fufu with palm nut soup, snail and tilapia.JPG",
+     [("food/fufu/fufu-palmnut-2.jpg", 1200, 900)]),
+    ("omotuo-2", "File:Omo Tuo at a Ghanaian restaurant in Colorado.jpg",
+     [("food/omotuo/omotuo-2.jpg", 1200, 900)]),
+    ("kokonte-2", "File:Kokonte 01 04.jpg",
+     [("food/kokonte/kokonte-2.jpg", 1200, 900)]),
+    ("kokonte-3", "File:Kokonte 11.jpg",
+     [("food/kokonte/kokonte-3.jpg", 1200, 900)]),
+    ("fried-rice-3", "File:Ghanaian fried rice 2.jpg",
+     [("food/rice/fried-rice-3.jpg", 1200, 900)]),
+    ("jollof-3", "File:Jollof Rice 2.jpg",
+     [("food/rice/jollof-3.jpg", 1200, 900)]),
+    ("jollof-4", "File:Jollof rice and tomato stew.jpg",
+     [("food/rice/jollof-4.jpg", 1200, 900)]),
+    ("jollof-fish", "File:Jollof and Fish.jpg",
+     [("food/rice/jollof-fish-1.jpg", 1200, 900)]),
+    ("rice-stew", "File:A plate of cooked rice with stew.jpg",
+     [("food/rice/rice-stew-1.jpg", 1200, 900)]),
     # --- category banners ---------------------------------------------------
     ("banku-cat", "File:Banku 07.jpg",
      [("banners/category-banku.jpg", 800, 800)]),
     ("fufu-cat", "File:Fufu plantain Ghana 1.jpg",
      [("banners/category-fufu.jpg", 800, 800)]),
     ("omotuo-cat", "File:Rice ball (Omotuo).jpeg",
-     [("banners/category-omotuo.jpg", 800, 800)]),
+     [("banners/category-omotuo.jpg", 800, 800),
+      ("food/omotuo/omotuo-3.jpg", 1200, 900)]),
     ("kokonte-cat", "File:Kokonte Dish.jpg",
      [("banners/category-kokonte.jpg", 800, 800)]),
     ("rice-cat", "File:Jollof Rice Ghana.jpg",
@@ -58,6 +104,8 @@ MANIFEST = [
      [("banners/hero-home-1600x900.jpg", 1600, 900),
       ("banners/hero-home-1200x1200.jpg", 1200, 1200),
       ("banners/hero-home-800x1200.jpg", 800, 1200)]),
+    ("hero-fufu", "File:Fufu in Palm Nut Soup.jpg",
+     [("banners/hero-fufu-palmnut.jpg", 1600, 900)]),
 ]
 
 
@@ -161,7 +209,10 @@ def main():
                 failures.append(title)
                 continue
             meta["_cache"] = cached
+            meta["_outputs"] = []
             credits.append(meta)
+
+        meta["_outputs"].extend(rel for rel, _w, _h in targets)
 
         try:
             src = Image.open(meta["_cache"])
@@ -188,18 +239,22 @@ def write_credits(credits):
     lines = [
         "# Afia Food Hub — Photography Credits",
         "",
-        "All photography in `frontend/public/brand/` is sourced from Wikimedia Commons",
-        "under a Creative Commons (or CC0) licence that permits commercial use with",
-        "attribution. Each file below lists its author, licence and source page.",
+        "Every photograph under `frontend/public/brand/` is sourced from Wikimedia",
+        "Commons under a Creative Commons (or CC0) licence that permits commercial",
+        "use with attribution. The local path, author, licence and source page are",
+        "listed below. Where one source produced several crops, all local files are",
+        "listed together.",
         "",
         "Attribution requirements must be honoured wherever these images are published.",
+        "Derived assets (social card, icons) are crops or composites of these photos.",
         "",
-        "| Asset source | Author | Licence | Source |",
+        "| Local asset(s) | Author | Licence | Source |",
         "|---|---|---|---|",
     ]
     for m in credits:
         lic = f"[{m['licence']}]({m['licence_url']})" if m.get("licence_url") else m["licence"]
-        lines.append(f"| {m['title'].replace('File:', '')} | {m['artist']} | {lic} | [Commons]({m['page']}) |")
+        assets = ", ".join(f"`{path}`" for path in m.get("_outputs", []))
+        lines.append(f"| {assets} | {m['artist']} | {lic} | [Commons]({m['page']}) |")
     lines += [
         "",
         "---",

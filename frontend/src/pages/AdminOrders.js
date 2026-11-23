@@ -4,7 +4,13 @@ import { adminAPI, apiErrorMessage } from '../services/api';
 import { BrandPrice, BrandBadge, BrandErrorState, BrandLoader, PageMeta } from '../components/brand';
 import { RefreshCw, ChevronDown, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { ORDER_STATUS, ORDER_STATUS_FLOW, PAYMENT_STATUS, nextOrderStatuses } from '../config/brand';
+import {
+  ORDER_STATUS,
+  ORDER_STATUS_FLOW,
+  ORDER_STAGES,
+  PAYMENT_STATUS,
+  orderStageForStatus,
+} from '../config/brand';
 
 const STATUS_OPTIONS = [
   ...ORDER_STATUS_FLOW.map((value) => ({ value, label: ORDER_STATUS[value].label })),
@@ -31,14 +37,29 @@ const AdminOrders = () => {
 
   const orders = data?.orders || [];
 
-  const handleStatusUpdate = async (orderId, newStatus) => {
+  const handleStageUpdate = async (orderId, stage) => {
     setUpdating(orderId);
     try {
-      await adminAPI.updateOrderStatus(orderId, { status: newStatus });
+      await adminAPI.updateOrderStage(orderId, { stage });
       await queryClient.invalidateQueries({ queryKey: ['admin'] });
-      toast.success('Order status updated');
+      toast.success('Order stage updated');
     } catch (err) {
       toast.error(apiErrorMessage(err, 'We could not update that order.'));
+      await refetch();
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleCancel = async (order) => {
+    if (!window.confirm(`Cancel order #${order.id}?`)) return;
+    setUpdating(order.id);
+    try {
+      await adminAPI.updateOrderStatus(order.id, { status: 'cancelled' });
+      await queryClient.invalidateQueries({ queryKey: ['admin'] });
+      toast.success('Order cancelled');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'We could not cancel that order.'));
       await refetch();
     } finally {
       setUpdating(null);
@@ -129,7 +150,16 @@ const AdminOrders = () => {
               label: order.payment_status,
               tone: 'neutral',
             };
-            const allowed = nextOrderStatuses(order.status);
+            const currentStage = orderStageForStatus(order.status);
+            const stageInfo =
+              ORDER_STAGES.find((stage) => stage.id === currentStage) || {
+                label: 'Cancelled',
+                tone: 'danger',
+              };
+            const currentStageIndex = ORDER_STAGES.findIndex(
+              (stage) => stage.id === currentStage
+            );
+            const isFinal = ['delivered', 'cancelled'].includes(order.status);
 
             return (
               <article key={order.id} className="card p-5">
@@ -137,7 +167,7 @@ const AdminOrders = () => {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <h2 className="font-display text-base text-bamboo-900">Order #{order.id}</h2>
-                      <BrandBadge tone={statusInfo.tone}>{statusInfo.label}</BrandBadge>
+                      <BrandBadge tone={stageInfo.tone}>{stageInfo.label}</BrandBadge>
                       <BrandBadge tone={paymentInfo.tone}>{paymentInfo.label}</BrandBadge>
                     </div>
 
@@ -151,6 +181,9 @@ const AdminOrders = () => {
                         {String(order.payment_method).replace(/_/g, ' ')}
                       </span>
                       {order.fulfilment_type === 'pickup' && ' · collection'}
+                    </p>
+                    <p className="mt-0.5 text-xs text-bamboo-400">
+                      Kitchen status: {statusInfo.label}
                     </p>
 
                     {order.items?.length > 0 && (
@@ -179,34 +212,44 @@ const AdminOrders = () => {
 
                   <div className="flex shrink-0 flex-col items-start gap-3 lg:items-end">
                     <BrandPrice amount={order.total} size="lg" />
-                    {allowed.length > 0 ? (
-                      <div className="relative">
-                        <label htmlFor={`status-${order.id}`} className="sr-only">
-                          Update status for order {order.id}
-                        </label>
-                        <select
-                          id={`status-${order.id}`}
-                          value={order.status}
+                    {!isFinal ? (
+                      <>
+                        <div className="relative">
+                          <label htmlFor={`stage-${order.id}`} className="sr-only">
+                            Update stage for order {order.id}
+                          </label>
+                          <select
+                            id={`stage-${order.id}`}
+                            value={currentStage}
+                            disabled={updating === order.id}
+                            onChange={(e) => handleStageUpdate(order.id, e.target.value)}
+                            className="select-field w-48 pr-9 text-sm"
+                          >
+                            {ORDER_STAGES.map((stage, index) => (
+                              <option
+                                key={stage.id}
+                                value={stage.id}
+                                disabled={index < currentStageIndex}
+                              >
+                                {stage.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown
+                            size={15}
+                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-bamboo-400"
+                            aria-hidden="true"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCancel(order)}
                           disabled={updating === order.id}
-                          onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                          className="select-field w-48 pr-9 text-sm"
+                          className="text-xs font-medium text-danger-600 hover:text-danger-700"
                         >
-                          {STATUS_OPTIONS.map((option) => (
-                            <option
-                              key={option.value}
-                              value={option.value}
-                              disabled={option.value !== order.status && !allowed.includes(option.value)}
-                            >
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown
-                          size={15}
-                          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-bamboo-400"
-                          aria-hidden="true"
-                        />
-                      </div>
+                          Cancel order
+                        </button>
+                      </>
                     ) : (
                       <span className="text-xs text-bamboo-400">Final status</span>
                     )}

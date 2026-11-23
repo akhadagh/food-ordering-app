@@ -73,6 +73,31 @@ router.put(
   }
 );
 
+router.put(
+  '/orders/:id/stage',
+  writeLimiter,
+  validate({
+    params: z.object({ id: field.id() }),
+    body: z
+      .object({
+        stage: z.enum(['placed', 'preparing', 'delivered']),
+        note: z.string().trim().max(300).optional(),
+      })
+      .strict(),
+  }),
+  async (req, res, next) => {
+    try {
+      const result = await orders.updateOrderStage(req.params.id, req.body.stage, {
+        note: req.body.note,
+        actor: req.user,
+      });
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 router.post(
   '/orders/:id/refund',
   writeLimiter,

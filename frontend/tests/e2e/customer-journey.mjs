@@ -10,8 +10,8 @@
  * Environment:
  *   FRONTEND_URL  default http://localhost:3111
  *   API_URL       default http://localhost:5000/api
- *   ADMIN_EMAIL   default admin@afiafoodhub.com
- *   ADMIN_PASSWORD default ChangeMe-Afia-2026
+ *   ADMIN_EMAIL   required for a seeded administrator
+ *   ADMIN_PASSWORD required for that administrator
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,8 +19,8 @@ import { Browser, sleep } from './browser.mjs';
 
 const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:3111';
 const API = process.env.API_URL || 'http://localhost:5000/api';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@afiafoodhub.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ChangeMe-Afia-2026';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'e2e.admin@example.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'E2E-Test-Only-2026';
 const SHOTS = path.resolve(process.cwd(), 'tests/e2e/screenshots');
 
 const results = [];
@@ -60,7 +60,7 @@ async function main() {
     check('the SVG favicon is referenced', favicon);
 
     const heroImgOk = await browser.evaluate(
-      'const i = document.querySelector(\'img[src*="hero-home"]\'); return !!i && i.complete && i.naturalWidth > 0;'
+      'const i = document.querySelector(\'img[src*="hero-fufu-palmnut"]\'); return !!i && i.complete && i.naturalWidth > 0;'
     );
     check('the hero photograph loads', heroImgOk);
 
@@ -107,14 +107,8 @@ async function main() {
     await browser.goto(`${FRONTEND}/menu`, { waitFor: 'main' });
     await sleep(1200);
 
-    // Add a dish that has no required options.
-    await browser.type('#menu-search', 'Beans');
-    await sleep(1400);
-    await browser.clickByText('Add to cart', 'button');
-    await sleep(1500);
-
-    // Now add a dish that DOES have options, and choose one - this is the
-    // flow the kitchen actually needs.
+    // Every published dish has a confirmed price and may require a choice;
+    // this is the flow the kitchen actually needs.
     await browser.type('#menu-search', 'Banku with Okra');
     await sleep(1400);
     const choseOptions = await browser.evaluate(`

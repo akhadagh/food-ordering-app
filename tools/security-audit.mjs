@@ -172,12 +172,37 @@ const IGNORED_DIRECTORIES = new Set([
   '.brand-cache',
 ]);
 
+const LOCAL_ENV_NAMES = new Set([
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.production',
+  '.env.test',
+]);
+
+/**
+ * A local env file is expected to hold real credentials. It is skipped only
+ * when Git confirms it is ignored; a tracked env file is still scanned (and
+ * the separate "no tracked .env file" check fails).
+ */
+function isGitIgnored(full) {
+  try {
+    execFileSync('git', ['check-ignore', '-q', '--', full], { cwd: ROOT, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function* walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (IGNORED_DIRECTORIES.has(entry.name)) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) yield* walk(full);
-    else if (entry.isFile()) yield full;
+    else if (entry.isFile()) {
+      if (LOCAL_ENV_NAMES.has(entry.name) && isGitIgnored(full)) continue;
+      yield full;
+    }
   }
 }
 

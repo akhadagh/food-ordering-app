@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { menuAPI } from '../services/api';
 import { BrandLogo, BrandPrice, BrandLoader, BrandErrorState, PageMeta } from '../components/brand';
+import FoodImageCarousel from '../components/menu/FoodImageCarousel';
 import { ArrowRight, Clock, Truck, ShieldCheck, Sparkles } from 'lucide-react';
 import { BRAND, BUSINESS } from '../config/brand';
 
-const FEATURES = [
+const BASE_FEATURES = [
   {
     icon: <Sparkles size={22} aria-hidden="true" />,
     title: 'Cooked to order',
@@ -14,18 +15,13 @@ const FEATURES = [
   },
   {
     icon: <Truck size={22} aria-hidden="true" />,
-    title: 'Delivered across Accra',
-    body: 'Hot food at your door, with the journey tracked from our kitchen to you.',
-  },
-  {
-    icon: <ShieldCheck size={22} aria-hidden="true" />,
-    title: 'Pay how you like',
-    body: 'Mobile money, card, or cash when the food arrives.',
+    title: 'Delivery or pickup',
+    body: 'Choose the option that suits you at checkout.',
   },
   {
     icon: <Clock size={22} aria-hidden="true" />,
-    title: 'Honest timing',
-    body: 'A real estimate for your order, updated as it travels.',
+    title: 'Clear order updates',
+    body: 'Follow your order from placed to delivered in your account.',
   },
 ];
 
@@ -53,14 +49,46 @@ const HomePage = () => {
     staleTime: 10 * 60 * 1000,
   });
 
+  // Payment options come from the backend, so the homepage never advertises
+  // a method (mobile money, card, cash) that checkout cannot actually use.
+  const { data: paymentMethods = [] } = useQuery({
+    queryKey: ['menu', 'payment-methods'],
+    queryFn: async () => (await menuAPI.getPaymentMethods()).data.methods || [],
+    staleTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+
   useEffect(() => {
     if (featuredIsError) setFeaturedError(true);
   }, [featuredIsError]);
 
+  const zones = BUSINESS.deliveryZones
+    ? BUSINESS.deliveryZones.split(',').map((zone) => zone.trim()).filter(Boolean)
+    : [];
+  const methodLabels = paymentMethods.map((method) => method.label).filter(Boolean);
+  const cashAvailable = paymentMethods.some((method) => method.id === 'cash');
+  const onlineAvailable = paymentMethods.some((method) => method.online);
+  const paymentSummary = methodLabels.length
+    ? `Pay ${cashAvailable && onlineAvailable ? 'on delivery or online' : cashAvailable ? 'cash on delivery' : 'online'}`
+    : null;
+
+  const features = paymentSummary
+    ? [
+        BASE_FEATURES[0],
+        BASE_FEATURES[1],
+        {
+          icon: <ShieldCheck size={22} aria-hidden="true" />,
+          title: 'Payment that suits you',
+          body: `Available at checkout: ${methodLabels.join(', ')}.`,
+        },
+        BASE_FEATURES[2],
+      ]
+    : BASE_FEATURES;
+
   const trustPoints = [
-    BUSINESS.deliveryZones?.length ? `Delivering across ${BUSINESS.deliveryZones.join(', ')}` : null,
+    zones.length ? `Delivering to ${zones.join(', ')}` : null,
     BUSINESS.hours ? `Open ${BUSINESS.hours}` : null,
-    'Mobile money, card and cash on delivery',
+    paymentSummary,
   ].filter(Boolean);
 
   return (
@@ -70,8 +98,8 @@ const HomePage = () => {
       {/* ------------------------------------------------------------ hero */}
       <section className="relative isolate overflow-hidden bg-brand-dark">
         <img
-          src="/brand/banners/hero-home-1600x900.jpg"
-          alt="Ghanaian jollof rice and fried plantain, freshly cooked"
+          src="/brand/banners/hero-fufu-palmnut.jpg"
+          alt="Fufu served in palm nut soup"
           className="absolute inset-0 h-full w-full object-cover"
           fetchpriority="high"
         />
@@ -81,14 +109,14 @@ const HomePage = () => {
         <div className="relative mx-auto w-full max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8 lg:py-40">
           <div className="max-w-xl">
             <p className="mb-5 inline-flex items-center gap-2 rounded-pill bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-accent-300 backdrop-blur">
-              Accra, Ghana
+              Ghanaian kitchen
             </p>
             <h1 className="font-display text-display-xl text-white text-balance sm:text-display-xl">
-              Real Ghanaian food, cooked to order and delivered hot.
+              Banku, fufu, omotuo, kokonte and rice — cooked to order.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-bamboo-200 text-pretty">
-              Banku, fufu, omotuo, kokonte and rice meals — made fresh in our
-              kitchen and brought to your table while they are still steaming.
+              The dishes Ghanaians know and love, made fresh in our kitchen.
+              Choose delivery or pickup at checkout{paymentSummary ? ` — ${paymentSummary.toLowerCase()}.` : '.'}
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
@@ -123,7 +151,7 @@ const HomePage = () => {
       {/* -------------------------------------------------------- features */}
       <section className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map((feature) => (
+          {features.map((feature) => (
             <div key={feature.title} className="card p-6">
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-control bg-clay-50 text-primary-600">
                 {feature.icon}
@@ -139,8 +167,8 @@ const HomePage = () => {
       <section className="mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <h2 className="font-display text-display-md text-bamboo-900">Popular dishes</h2>
-            <p className="mt-1 text-bamboo-600">What the kitchen is cooking most right now.</p>
+            <h2 className="font-display text-display-md text-bamboo-900">From the kitchen</h2>
+            <p className="mt-1 text-bamboo-600">A few dishes from the menu, chosen for you.</p>
           </div>
           <Link
             to="/menu"
@@ -191,20 +219,7 @@ const HomePage = () => {
                 className="card-interactive group overflow-hidden"
                 aria-label={`${item.name}, ${item.category_name || 'Ghanaian dish'}`}
               >
-                <div className="media h-48">
-                  {item.image_url ? (
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-clay-50">
-                      <BrandLogo variant="icon" height={56} className="opacity-25" />
-                    </div>
-                  )}
-                </div>
+                <FoodImageCarousel item={item} alt={item.name} heightClass="h-48" />
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="font-display text-lg leading-snug text-bamboo-900 transition-colors group-hover:text-primary-600">
@@ -231,7 +246,7 @@ const HomePage = () => {
       <section className="bg-white py-14">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="font-display text-display-md text-bamboo-900">Browse by category</h2>
-          <p className="mt-1 text-bamboo-600">From light soup and banku to rice and everything in between.</p>
+          <p className="mt-1 text-bamboo-600">Five kitchen staples, each with its own soups and sides.</p>
 
           {categoriesLoading ? (
             <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -281,7 +296,7 @@ const HomePage = () => {
       {/* ----------------------------------------------------------- cta */}
       <section className="relative isolate overflow-hidden bg-brand-gradient py-16">
         <img
-          src="/brand/banners/promo-delivery-1600x600.jpg"
+          src="/brand/banners/about-kitchen-1200x800.jpg"
           alt=""
           className="absolute inset-0 h-full w-full object-cover opacity-25"
           loading="lazy"
@@ -292,7 +307,7 @@ const HomePage = () => {
             Hungry? The kitchen is open.
           </h2>
           <p className="mt-3 text-bamboo-100">
-            Pick a dish, choose how you want to pay, and we will bring it to you while it is hot.
+            Pick a dish, choose delivery or pickup{paymentSummary ? `, ${paymentSummary.toLowerCase()}` : ''}.
           </p>
           <Link
             to="/menu"

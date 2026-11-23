@@ -14,20 +14,38 @@ import { badRequest } from '../utils/errors.js';
  */
 const storage = multer.memoryStorage();
 
-export const uploadImage = multer({
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+const uploader = multer({
   storage,
   limits: {
     fileSize: env.uploadMaxBytes,
-    files: 1,
+    files: 9,
   },
   fileFilter(_req, file, cb) {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowed.includes(file.mimetype)) {
+    if (!ALLOWED_MIME.includes(file.mimetype)) {
       cb(badRequest('Upload a JPEG, PNG, WebP or GIF image.'));
       return;
     }
     cb(null, true);
   },
-}).single('image');
+});
 
-export default { uploadImage };
+/** A single image - kept for clients that send one `image` field. */
+export const uploadImage = uploader.single('image');
+
+/**
+ * A dish gallery. Accepts one legacy `image` field and/or up to eight
+ * `images` fields in the same request.
+ */
+export const uploadMenuImages = uploader.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'images', maxCount: 8 },
+]);
+
+export function uploadedFiles(req) {
+  const files = req.files || {};
+  return [...(files.image || []), ...(files.images || [])];
+}
+
+export default { uploadImage, uploadMenuImages, uploadedFiles };

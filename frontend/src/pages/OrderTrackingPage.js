@@ -11,25 +11,25 @@ import {
 } from '../components/brand';
 import {
   Package,
-  Clock,
   ChefHat,
   Truck,
   CheckCircle,
   ArrowLeft,
   XCircle,
-  ShoppingBag,
   Store,
   CreditCard,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { ORDER_STATUS, ORDER_STATUS_FLOW, PAYMENT_STATUS } from '../config/brand';
+import {
+  ORDER_STATUS,
+  ORDER_STAGES,
+  PAYMENT_STATUS,
+  orderStageForStatus,
+} from '../config/brand';
 
 const STEPS = [
-  { key: 'placed', label: 'Placed', icon: <Package size={20} aria-hidden="true" /> },
-  { key: 'confirmed', label: 'Confirmed', icon: <Clock size={20} aria-hidden="true" /> },
-  { key: 'preparing', label: 'Preparing', icon: <ChefHat size={20} aria-hidden="true" /> },
-  { key: 'ready', label: 'Ready', icon: <ShoppingBag size={20} aria-hidden="true" /> },
-  { key: 'out_for_delivery', label: 'Out for delivery', icon: <Truck size={20} aria-hidden="true" /> },
+  { key: 'placed', label: 'Order placed', icon: <Package size={20} aria-hidden="true" /> },
+  { key: 'preparing', label: 'Preparing / Ready', icon: <ChefHat size={20} aria-hidden="true" /> },
   { key: 'delivered', label: 'Delivered', icon: <CheckCircle size={20} aria-hidden="true" /> },
 ];
 
@@ -89,13 +89,35 @@ const OrderTrackingPage = () => {
   }
 
   const isCancelled = order.status === 'cancelled';
-  const currentIndex = STEPS.findIndex((s) => s.key === order.status);
+  const currentStage = orderStageForStatus(order.status);
+  const currentIndex = STEPS.findIndex((step) => step.key === currentStage);
+  const stageInfo =
+    ORDER_STAGES.find((stage) => stage.id === currentStage) || {
+      label: 'Cancelled',
+      tone: 'danger',
+    };
   const status = ORDER_STATUS[order.status] || { label: order.status, tone: 'neutral' };
   const payment = PAYMENT_STATUS[order.payment_status] || {
     label: order.payment_status,
     tone: 'neutral',
   };
   const canCancel = ['placed', 'confirmed'].includes(order.status);
+
+  const stageHistory = [];
+  for (const entry of order.status_history || []) {
+    const stage =
+      entry.status === 'cancelled' ? 'cancelled' : orderStageForStatus(entry.status);
+    if (!stage) continue;
+    if (stageHistory.length && stageHistory[stageHistory.length - 1].stage === stage) continue;
+    stageHistory.push({
+      ...entry,
+      stage,
+      label:
+        stage === 'cancelled'
+          ? 'Cancelled'
+          : ORDER_STAGES.find((item) => item.id === stage)?.label || entry.status,
+    });
+  }
 
   return (
     <div className="page-container max-w-3xl">
@@ -124,7 +146,7 @@ const OrderTrackingPage = () => {
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <BrandBadge tone={status.tone}>{status.label}</BrandBadge>
+            <BrandBadge tone={stageInfo.tone}>{stageInfo.label}</BrandBadge>
             <BrandBadge tone={payment.tone}>{payment.label}</BrandBadge>
           </div>
         </div>
@@ -192,12 +214,20 @@ const OrderTrackingPage = () => {
             <p className="font-medium text-bamboo-900">
               {isCancelled
                 ? 'This order has been cancelled.'
-                : order.fulfilment_type === 'pickup'
-                  ? 'You are collecting this order.'
-                  : 'Your order is on its way.'}
+                : order.status === 'delivered'
+                  ? 'Your order has been delivered.'
+                  : order.status === 'out_for_delivery'
+                    ? 'Your order is on its way.'
+                    : currentStage === 'preparing'
+                      ? order.fulfilment_type === 'pickup'
+                        ? 'Your order is being prepared for collection.'
+                        : 'The kitchen is preparing your order.'
+                      : order.fulfilment_type === 'pickup'
+                        ? 'We have received your collection order.'
+                        : 'We have received your order.'}
             </p>
             <p className="mt-1 text-sm text-bamboo-600">
-              {status.description}
+              {isCancelled ? status.description : stageInfo.description}
               {order.estimated_delivery &&
                 !['delivered', 'cancelled'].includes(order.status) &&
                 ` Estimated ${
@@ -361,20 +391,17 @@ const OrderTrackingPage = () => {
         )}
 
         {/* ------------------------------------------------------ history */}
-        {order.status_history?.length > 0 && (
+        {stageHistory.length > 0 && (
           <section className="mt-8 border-t border-bamboo-100 pt-6">
             <h2 className="font-display text-base text-bamboo-900">Timeline</h2>
             <ol className="mt-3 space-y-3">
-              {order.status_history.map((entry) => (
+              {stageHistory.map((entry) => (
                 <li key={entry.id} className="flex gap-3 text-sm">
                   <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary-400" aria-hidden="true" />
                   <div>
-                    <p className="font-medium capitalize text-bamboo-700">
-                      {String(entry.status).replace(/_/g, ' ')}
-                    </p>
+                    <p className="font-medium text-bamboo-700">{entry.label}</p>
                     <p className="text-xs text-bamboo-500">
                       {new Date(entry.created_at).toLocaleString()}
-                      {entry.note ? ` — ${entry.note}` : ''}
                     </p>
                   </div>
                 </li>

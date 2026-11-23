@@ -1,7 +1,8 @@
 # Afia Food Hub
 
-Food ordering and delivery for Ghana — banku, fufu, omotuo, kokonte and rice
-meals, cooked to order and delivered hot.
+Food ordering for Ghana — banku, fufu, omotuo, kokonte and rice meals,
+cooked to order. The catalogue is deliberately limited to those five
+categories; the API refuses any other category or standalone dish.
 
 The application is a React single-page interface and a Node/Express API over
 PostgreSQL. The API owns the money: every price the customer sees is
@@ -24,13 +25,18 @@ calculated by the server from the live menu.
 
 **For the customer**
 
-- Browse and search the menu by category, with real dish photography.
+- Browse and search the menu by category. The five categories are Banku,
+  Fufu, Omotuo, Kokonte and Rice dishes.
+- Every dish card carries its own photo gallery — several photographs rotate
+  automatically, can be swiped, and fall back to a branded placeholder when a
+  dish has no photograph.
 - Customise a dish — choose a protein, a portion, an extra — and see the
   price the kitchen calculates.
 - A cart that survives a device change, and merges into the account when a
   guest signs up.
 - Checkout by delivery or collection, with a promo code and cash on delivery.
-- Order tracking with the kitchen's own status history.
+- Order tracking in three clear stages: **Order placed → Preparing / Ready →
+  Delivered**.
 - An assistant that answers from the live menu and the customer's own
   orders — and says so when it does not know.
 
@@ -38,8 +44,12 @@ calculated by the server from the live menu.
 
 - A dashboard of live figures: orders, revenue booked, revenue collected,
   revenue outstanding.
-- Order management with the legal status transitions only.
-- Menu and category management, with image upload.
+- Order management in three stages — Order placed, Preparing / Ready,
+  Delivered — plus cancellation, while the kitchen's detailed internal status
+  is still recorded.
+- Menu and category management with up to eight photographs per dish: choose
+  the cover, reorder, and delete. Categories can be hidden but not added,
+  renamed or deleted outside the five approved ones.
 - Sales reports by period, dish and payment method, and a CSV export of the
   same figures.
 - Customer management: role assignment and deactivation.

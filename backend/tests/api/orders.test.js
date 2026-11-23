@@ -132,13 +132,13 @@ describe('placing an order', () => {
     expect(res.body.payment_method).toBe('cash');
   });
 
-  it('records a mobile money order as pending', async () => {
+  it('refuses a mobile money order while no online provider is configured', async () => {
     const { agent } = await customerAgent();
 
     const res = await agent.post('/api/orders').send({ ...ORDER, paymentMethod: 'mtn_momo' });
 
-    expect(res.status).toBe(201);
-    expect(res.body.payment_status).toBe('pending');
+    expect(res.status).toBe(422);
+    expect(res.body.error.message).toMatch(/not available right now/i);
   });
 
   it('writes the first line of the status history', async () => {
@@ -354,6 +354,63 @@ describe('the order state machine', () => {
 
     const back = await admin.put(`/api/admin/orders/${id}/status`).send({ status: 'preparing' });
     expect(back.status).toBe(409);
+  });
+
+  it('moves an order through the three customer-facing stages', async () => {
+    const { agent: customer } = await customerAgent();
+    const { agent: admin } = await adminAgent();
+
+    const created = await customer.post('/api/orders').send(ORDER);
+    const id = created.body.id;
+
+    const preparing = await admin.put(`/api/admin/orders/${id}/stage`).send({ stage: 'preparing' });
+    expect(preparing.status).toBe(200);
+    expect(preparing.body.stage).toBe('preparing');
+    expect(preparing.body.status).toBe('preparing');
+
+    const delivered = await admin.put(`/api/admin/orders/${id}/stage`).send({ stage: 'delivered' });
+    expect(delivered.status).toBe(200);
+    expect(delivered.body.stage).toBe('delivered');
+    expect(delivered.body.status).toBe('delivered');
+
+    const order = await customer.get(`/api/orders/${id}`);
+    expect(order.body.status).toBe('delivered');
+    expect(order.body.status_history.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('does not let a delivered order go back a stage', async () => {
+    const { agent: customer } = await customerAgent();
+    const { agent: admin } = await adminAgent();
+
+    const created = await customer.post('/api/orders').send(ORDER);
+    const id = created.body.id;
+    await admin.put(`/api/admin/orders/${id}/stage`).send({ stage: 'delivered' });
+
+    const back = await admin.put(`/api/admin/orders/${id}/stage`).send({ stage: 'preparing' });
+    expect(back.status).toBe(409);
+  });
+
+  it('refuses a customer who tries to move the order stage', async () => {
+    const { agent: customer } = await customerAgent();
+
+    const created = await customer.post('/api/orders').send(ORDER);
+    const res = await customer
+      .put(`/api/admin/orders/${created.body.id}/stage`)
+      .send({ stage: 'delivered' });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('refuses an unknown stage', async () => {
+    const { agent: customer } = await customerAgent();
+    const { agent: admin } = await adminAgent();
+
+    const created = await customer.post('/api/orders').send(ORDER);
+    const res = await admin
+      .put(`/api/admin/orders/${created.body.id}/stage`)
+      .send({ stage: 'teleported' });
+
+    expect(res.status).toBe(400);
   });
 
   it('refuses an unknown status', async () => {

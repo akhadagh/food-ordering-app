@@ -14,9 +14,9 @@ const env = (key) => {
 
 export const BRAND = {
   name: env('REACT_APP_BRAND_NAME') || 'Afia Food Hub',
-  tagline: 'Real Ghanaian food, cooked to order and delivered hot.',
+  tagline: 'Real Ghanaian food, cooked to order.',
   shortDescription:
-    'Authentic Ghanaian dishes — banku, fufu, omotuo, kokonte and rice meals — made fresh to order and delivered across Accra.',
+    'Authentic Ghanaian dishes — banku, fufu, omotuo, kokonte and rice meals — made fresh to order.',
   locale: 'en-GH',
   currency: 'GH₵',
 };
@@ -34,44 +34,6 @@ export const BUSINESS = {
   },
 };
 
-export const PAYMENT_METHODS = [
-  {
-    id: 'mtn_momo',
-    label: 'MTN Mobile Money',
-    shortLabel: 'MTN MoMo',
-    provider: 'paystack',
-    description: 'Pay with your MTN Mobile Money wallet',
-  },
-  {
-    id: 'telecel_cash',
-    label: 'Telecel Cash',
-    shortLabel: 'Telecel Cash',
-    provider: 'paystack',
-    description: 'Pay with your Telecel Cash wallet',
-  },
-  {
-    id: 'airteltigo_money',
-    label: 'AirtelTigo Money',
-    shortLabel: 'AirtelTigo',
-    provider: 'paystack',
-    description: 'Pay with your AirtelTigo Money wallet',
-  },
-  {
-    id: 'card',
-    label: 'Debit or credit card',
-    shortLabel: 'Card',
-    provider: 'paystack',
-    description: 'Visa and Mastercard accepted',
-  },
-  {
-    id: 'cash',
-    label: 'Cash on delivery',
-    shortLabel: 'Cash',
-    provider: 'cod',
-    description: 'Pay when your food arrives',
-  },
-];
-
 export const ORDER_STATUS = {
   placed: { label: 'Placed', tone: 'neutral', description: 'We have received your order.' },
   confirmed: { label: 'Confirmed', tone: 'accent', description: 'The kitchen has confirmed your order.' },
@@ -81,6 +43,39 @@ export const ORDER_STATUS = {
   delivered: { label: 'Delivered', tone: 'success', description: 'Your order has been delivered. Enjoy your meal!' },
   cancelled: { label: 'Cancelled', tone: 'danger', description: 'This order has been cancelled.' },
 };
+
+/**
+ * The three customer-facing stages.
+ *
+ * The kitchen keeps the detailed internal status, but customers only see
+ * "Order placed", "Preparing / Ready" and "Delivered".
+ */
+export const ORDER_STAGES = [
+  { id: 'placed', label: 'Order placed', tone: 'neutral', description: 'We have received your order.' },
+  {
+    id: 'preparing',
+    label: 'Preparing / Ready',
+    tone: 'warning',
+    description: 'The kitchen is preparing your food.',
+  },
+  {
+    id: 'delivered',
+    label: 'Delivered',
+    tone: 'success',
+    description: 'Your order has been delivered. Enjoy your meal!',
+  },
+];
+
+export const orderStageForStatus = (status) => {
+  if (['placed', 'confirmed'].includes(status)) return 'placed';
+  if (['preparing', 'ready', 'out_for_delivery'].includes(status)) return 'preparing';
+  if (status === 'delivered') return 'delivered';
+  if (status === 'cancelled') return 'cancelled';
+  return null;
+};
+
+export const orderStageIndex = (status) =>
+  ORDER_STAGES.findIndex((stage) => stage.id === orderStageForStatus(status));
 
 export const ORDER_STATUS_FLOW = [
   'placed',

@@ -1,8 +1,10 @@
 import crypto from 'node:crypto';
 import { query, withTransaction } from '../config/db.js';
+import { env } from '../config/env.js';
 import { badRequest, forbidden, notFound, conflict, unprocessable } from '../utils/errors.js';
 import { buildQuote } from './pricing.service.js';
 import { consumePromo } from './promo.service.js';
+import { availablePaymentMethods } from '../payments/index.js';
 import { toDecimal, toMinor } from '../utils/money.js';
 
 /**
@@ -34,8 +36,49 @@ const ALLOWED_TRANSITIONS = {
 /** Statuses from which a customer may still cancel their own order. */
 export const CUSTOMER_CANCELLABLE = ['placed', 'confirmed'];
 
+/**
+ * The three stages a customer follows.
+ *
+ * The kitchen still records the detailed internal status (confirmed, ready,
+ * out for delivery) so the history is not lost. Customers and the simple
+ * administration control only see these three stages.
+ */
+export const ORDER_STAGES = ['placed', 'preparing', 'delivered'];
+
+export const ORDER_STAGE_LABELS = {
+  placed: 'Order placed',
+  preparing: 'Preparing / Ready',
+  delivered: 'Delivered',
+};
+
+export function stageForStatus(status) {
+  if (['placed', 'confirmed'].includes(status)) return 'placed';
+  if (['preparing', 'ready', 'out_for_delivery'].includes(status)) return 'preparing';
+  if (status === 'delivered') return 'delivered';
+  if (status === 'cancelled') return 'cancelled';
+  return null;
+}
+
 export function canTransition(from, to) {
   return (ALLOWED_TRANSITIONS[from] || []).includes(to);
+}
+
+/** Shortest legal path through the internal statuses. */
+function findStatusPath(from, to) {
+  if (from === to) return [];
+  const queue = [[from]];
+  const visited = new Set([from]);
+  while (queue.length) {
+    const path = queue.shift();
+    const current = path[path.length - 1];
+    for (const next of ALLOWED_TRANSITIONS[current] || []) {
+      if (next === 'cancelled' || visited.has(next)) continue;
+      if (next === to) return [...path.slice(1), next];
+      visited.add(next);
+      queue.push([...path, next]);
+    }
+  }
+  return null;
 }
 
 const ORDER_COLUMNS = `
@@ -93,6 +136,16 @@ export async function createOrder(user, input, { idempotencyKey } = {}) {
 
   const paymentMethod = String(input.paymentMethod ?? input.payment_method ?? '').trim();
   if (!paymentMethod) throw badRequest('Choose a payment method.');
+  // Only a method the backend can actually settle is accepted. An online
+  // method is not a real option while its provider is not configured, so an
+  // order must not be created against it (the checkout is not the only door
+  // into this endpoint).
+  const enabledMethods = availablePaymentMethods().map((method) => method.id);
+  if (!enabledMethods.includes(paymentMethod)) {
+    throw unprocessable(
+      'That payment method is not available right now. Please choose cash on delivery.'
+    );
+  }
 
   const fulfilmentType = String(input.fulfilmentType ?? input.fulfilment_type ?? 'delivery');
   if (!['delivery', 'pickup'].includes(fulfilmentType)) {
@@ -122,7 +175,7 @@ export async function createOrder(user, input, { idempotencyKey } = {}) {
           promo_code_id, promo_code, delivery_address, delivery_notes, customer_phone,
           fulfilment_type, payment_method, payment_status, idempotency_key, estimated_delivery)
        VALUES ($1, 'placed', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-               now() + interval '45 minutes')
+               $15)
        RETURNING ${ORDER_RETURNING}`,
       [
         user.id,
@@ -139,6 +192,11 @@ export async function createOrder(user, input, { idempotencyKey } = {}) {
         paymentMethod,
         paymentMethod === 'cash' ? 'pending_cod' : 'pending',
         idempotencyKey ?? null,
+        // No delivery-time promise is made unless the owner has configured
+        // one. A fabricated fixed estimate is not a live timing system.
+        env.deliveryEstimateMinutes > 0
+          ? new Date(Date.now() + env.deliveryEstimateMinutes * 60_000).toISOString()
+          : null,
       ]
     );
 
@@ -337,6 +395,60 @@ export async function updateOrderStatus(orderId, nextStatus, { note, actor } = {
   });
 }
 
+/**
+ * Move an order to one of the three customer-facing stages.
+ *
+ * This walks the existing legal transitions, so the internal history stays
+ * consistent and a delivered order can never be moved backwards.
+ */
+export async function updateOrderStage(orderId, stage, { note, actor } = {}) {
+  const id = Number(orderId);
+  if (!Number.isFinite(id)) throw badRequest('Invalid order reference.');
+  if (!ORDER_STAGES.includes(stage)) throw badRequest('That order stage is not recognised.');
+
+  return withTransaction(async (client) => {
+    const { rows } = await client.query('SELECT id, status FROM orders WHERE id = $1 FOR UPDATE', [id]);
+    const order = rows[0];
+    if (!order) throw notFound('Order not found.');
+
+    if (order.status === 'cancelled') {
+      throw conflict('A cancelled order cannot be moved to another stage.');
+    }
+
+    const currentStage = stageForStatus(order.status);
+    if (currentStage === stage) {
+      return { id: order.id, status: order.status, stage, unchanged: true };
+    }
+
+    const path = findStatusPath(order.status, stage);
+    if (!path) {
+      throw conflict(
+        `An order that is "${order.status.replace('_', ' ')}" cannot be moved to the "${ORDER_STAGE_LABELS[stage]}" stage.`
+      );
+    }
+
+    for (const next of path) {
+      await client.query('UPDATE orders SET status = $2 WHERE id = $1', [id, next]);
+      const entryNote =
+        next === stage
+          ? note || `Order stage updated to ${ORDER_STAGE_LABELS[stage]}`
+          : `Status updated to ${next.replace('_', ' ')}`;
+      await client.query(
+        `INSERT INTO order_status_history (order_id, status, note) VALUES ($1, $2, $3)`,
+        [id, next, entryNote]
+      );
+    }
+
+    return {
+      id,
+      status: path[path.length - 1],
+      stage,
+      previousStatus: order.status,
+      updatedBy: actor?.id ?? null,
+    };
+  });
+}
+
 export async function cancelOrder(orderId, user, { reason } = {}) {
   const id = Number(orderId);
   if (!Number.isFinite(id)) throw badRequest('Invalid order reference.');
@@ -387,8 +499,11 @@ export default {
   listMyOrders,
   listAllOrders,
   updateOrderStatus,
+  updateOrderStage,
   cancelOrder,
   canTransition,
+  stageForStatus,
   CUSTOMER_CANCELLABLE,
   ORDER_STATUS_FLOW,
+  ORDER_STAGES,
 };

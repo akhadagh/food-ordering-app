@@ -36,7 +36,8 @@ describe('uploading a dish image', () => {
       .post('/api/menu/items')
       .attach('image', pngBytes(), 'dish.png')
       .field('name', 'Upload Test Jollof')
-      .field('price', '40');
+      .field('price', '40')
+      .field('category_id', '1');
 
     expect(res.status).toBe(401);
   });
@@ -48,7 +49,8 @@ describe('uploading a dish image', () => {
       .post('/api/menu/items')
       .attach('image', pngBytes(), 'dish.png')
       .field('name', 'Upload Test Jollof')
-      .field('price', '40');
+      .field('price', '40')
+      .field('category_id', '1');
 
     expect(res.status).toBe(403);
   });
@@ -60,7 +62,8 @@ describe('uploading a dish image', () => {
       .post('/api/menu/items')
       .attach('image', pngBytes(), 'jollof.png')
       .field('name', 'Upload Test Jollof')
-      .field('price', '40');
+      .field('price', '40')
+      .field('category_id', '1');
 
     expect(res.status).toBe(201);
     expect(res.body.image_url).toMatch(/^\/uploads\/menu\//);
@@ -72,9 +75,10 @@ describe('uploading a dish image', () => {
 
     const res = await agent
       .post('/api/menu/items')
-      .attach('image', jpegBytes(), 'kelewele.jpg')
-      .field('name', 'Upload Test Kelewele')
-      .field('price', '18');
+      .attach('image', jpegBytes(), 'fufu-with-okro.jpg')
+      .field('name', 'Upload Test Fufu with Okra Soup')
+      .field('price', '18')
+      .field('category_id', '2');
 
     expect(res.status).toBe(201);
     expect(res.body.image_url).toMatch(/\.jpg$/);
@@ -87,7 +91,8 @@ describe('uploading a dish image', () => {
       .post('/api/menu/items')
       .attach('image', Buffer.from('#!/bin/sh\nrm -rf /'), 'payload.sh')
       .field('name', 'Sneaky')
-      .field('price', '1');
+      .field('price', '1')
+      .field('category_id', '1');
 
     expect(res.status).toBe(400);
   });
@@ -99,7 +104,8 @@ describe('uploading a dish image', () => {
       .post('/api/menu/items')
       .attach('image', Buffer.from('#!/bin/sh\nrm -rf /'), 'payload.png')
       .field('name', 'Sneaky')
-      .field('price', '1');
+      .field('price', '1')
+      .field('category_id', '1');
 
     expect(res.status).toBe(400);
   });
@@ -111,7 +117,8 @@ describe('uploading a dish image', () => {
       .post('/api/menu/items')
       .attach('image', pngBytes(2 * 1024 * 1024), 'huge.png')
       .field('name', 'Huge')
-      .field('price', '1');
+      .field('price', '1')
+      .field('category_id', '1');
 
     expect(res.status).toBe(413);
   });
@@ -119,7 +126,9 @@ describe('uploading a dish image', () => {
   it('creates the dish even when no image is sent', async () => {
     const { agent } = await adminAgent();
 
-    const res = await agent.post('/api/menu/items').send({ name: 'Upload Test Plain Dish', price: 10 });
+    const res = await agent
+      .post('/api/menu/items')
+      .send({ name: 'Upload Test Plain Dish', price: 10, category_id: 1 });
 
     expect(res.status).toBe(201);
     expect(res.body.image_url).toBeNull();

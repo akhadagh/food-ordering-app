@@ -38,11 +38,9 @@ describe('the configured provider', () => {
 });
 
 describe('starting a payment', () => {
-  it('refuses an online payment and points the customer at cash', async () => {
+  it('refuses an online order and points the customer at cash', async () => {
     const { agent } = await customerAgent();
-    const created = await agent.post('/api/orders').send({ ...ORDER, paymentMethod: 'mtn_momo' });
-
-    const res = await agent.post(`/api/orders/${created.body.id}/payment`);
+    const res = await agent.post('/api/orders').send({ ...ORDER, paymentMethod: 'mtn_momo' });
 
     expect(res.status).toBe(422);
     expect(res.body.error.message).toMatch(/not available right now/i);
@@ -68,7 +66,7 @@ describe('starting a payment', () => {
     const first = await customerAgent();
     const second = await customerAgent();
 
-    const created = await first.agent.post('/api/orders').send({ ...ORDER, paymentMethod: 'mtn_momo' });
+    const created = await first.agent.post('/api/orders').send(ORDER);
     const res = await second.agent.post(`/api/orders/${created.body.id}/payment`);
 
     expect(res.status).toBe(404);
@@ -76,7 +74,7 @@ describe('starting a payment', () => {
 
   it('refuses to refresh a payment that does not exist', async () => {
     const { agent } = await customerAgent();
-    const created = await agent.post('/api/orders').send({ ...ORDER, paymentMethod: 'mtn_momo' });
+    const created = await agent.post('/api/orders').send(ORDER);
 
     const res = await agent.post(`/api/orders/${created.body.id}/payment/refresh`);
 
@@ -108,7 +106,7 @@ describe('provider callbacks', () => {
     const { agent: customer } = await customerAgent();
     const { agent: admin } = await adminAgent();
 
-    const created = await customer.post('/api/orders').send({ ...ORDER, paymentMethod: 'mtn_momo' });
+    const created = await customer.post('/api/orders').send(ORDER);
 
     await api()
       .post('/api/payments/paystack/webhook')
@@ -117,7 +115,7 @@ describe('provider callbacks', () => {
       .expect(422);
 
     const order = await admin.get(`/api/orders/${created.body.id}`);
-    expect(order.body.payment_status).toBe('pending');
+    expect(order.body.payment_status).toBe('pending_cod');
   });
 });
 

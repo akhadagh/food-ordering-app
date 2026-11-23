@@ -84,6 +84,15 @@ describe('the public menu', () => {
     expect(Array.isArray(res.body.custom_options)).toBe(true);
   });
 
+  it('hides an unavailable dish from the single-item endpoint', async () => {
+    const publicRes = await api().get(`/api/menu/items/${ITEM.kokonteGroundnut}`);
+    expect(publicRes.status).toBe(404);
+
+    const { agent } = await adminAgent();
+    const adminRes = await agent.get(`/api/menu/items/${ITEM.kokonteGroundnut}`);
+    expect(adminRes.status).toBe(200);
+  });
+
   it('answers an unknown dish with a 404', async () => {
     const res = await api().get('/api/menu/items/999999');
 
@@ -127,20 +136,67 @@ describe('administering the menu', () => {
     expect(res.body.error.code).toBe('forbidden');
   });
 
-  it('creates a dish', async () => {
+  it('creates an approved dish combination', async () => {
     const { agent } = await adminAgent();
 
     const res = await agent.post('/api/menu/items').send({
-      name: 'Kelewele',
-      description: 'Spiced fried plantain.',
-      price: 18,
+      name: 'Fufu with Okro Soup',
+      description: 'Fufu served with okro soup.',
+      price: 38,
       category_id: 2,
     });
 
     expect(res.status).toBe(201);
-    expect(res.body.name).toBe('Kelewele');
-    expect(Number(res.body.price)).toBe(18);
-    expect(res.body.slug).toBe('kelewele');
+    expect(res.body.name).toBe('Fufu with Okro Soup');
+    expect(Number(res.body.price)).toBe(38);
+    expect(res.body.slug).toBe('fufu-with-okro-soup');
+  });
+
+  it('refuses a dish name outside the approved catalogue', async () => {
+    const { agent } = await adminAgent();
+
+    const res = await agent.post('/api/menu/items').send({
+      name: 'Kelewele',
+      price: 18,
+      category_id: 2,
+    });
+
+    expect(res.status).toBe(422);
+  });
+
+  it('refuses a dish attached to an unapproved category', async () => {
+    const { agent } = await adminAgent();
+    const { query } = await import('../../src/config/db.js');
+    const { rows } = await query(
+      `INSERT INTO categories (name, slug) VALUES ('Grills', 'grills') RETURNING id`
+    );
+
+    const res = await agent.post('/api/menu/items').send({
+      name: 'Banku with Fish',
+      price: 30,
+      category_id: rows[0].id,
+    });
+
+    expect(res.status).toBe(422);
+  });
+
+  it('refuses a dish with no category', async () => {
+    const { agent } = await adminAgent();
+
+    const res = await agent.post('/api/menu/items').send({ name: 'Orphan Dish', price: 20 });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.message).toMatch(/choose a category/i);
+  });
+
+  it('refuses to publish a dish before its price is confirmed', async () => {
+    const { agent } = await adminAgent();
+
+    const res = await agent
+      .post('/api/menu/items')
+      .send({ name: 'Unpriced Dish', price: 0, category_id: 1, is_available: true });
+
+    expect(res.status).toBe(422);
   });
 
   it('binds is_available on create (P1-03)', async () => {
@@ -148,7 +204,7 @@ describe('administering the menu', () => {
 
     const res = await agent
       .post('/api/menu/items')
-      .send({ name: 'Sold Out Today', price: 12, is_available: false });
+      .send({ name: 'Sold Out Today', price: 12, category_id: 1, is_available: false });
 
     expect(res.status).toBe(201);
     expect(res.body.is_available).toBe(false);
@@ -163,7 +219,7 @@ describe('administering the menu', () => {
 
     const res = await agent
       .post('/api/menu/items')
-      .send({ name: 'Featured Dish', price: 20, is_featured: true });
+      .send({ name: 'Featured Dish', price: 20, category_id: 1, is_featured: true });
 
     expect(res.status).toBe(201);
     expect(res.body.is_featured).toBe(true);
@@ -231,16 +287,22 @@ describe('administering the menu', () => {
     expect(gone.status).toBe(404);
   });
 
-  it('creates a category', async () => {
+  it('refuses a category outside the five approved categories', async () => {
     const { agent } = await adminAgent();
 
     const res = await agent
       .post('/api/menu/categories')
       .send({ name: 'Grills', description: 'Straight off the fire.', sort_order: 3 });
 
-    expect(res.status).toBe(201);
-    expect(res.body.name).toBe('Grills');
-    expect(res.body.slug).toBe('grills');
+    expect(res.status).toBe(422);
+  });
+
+  it('refuses to duplicate an approved category', async () => {
+    const { agent } = await adminAgent();
+
+    const res = await agent.post('/api/menu/categories').send({ name: 'Banku' });
+
+    expect(res.status).toBe(409);
   });
 
   it('refuses a category with no name', async () => {
@@ -250,22 +312,43 @@ describe('administering the menu', () => {
     expect(res.status).toBe(400);
   });
 
-  it('keeps the dishes when a category is deleted', async () => {
+  it('refuses to delete one of the five structural categories', async () => {
     const { agent } = await adminAgent();
 
-    await agent.delete('/api/menu/categories/1').expect(200);
+    const res = await agent.delete('/api/menu/categories/1');
+    expect(res.status).toBe(422);
 
     const menu = await api().get('/api/menu/items');
     expect(menu.body.length).toBe(6);
+    expect(menu.body.find((i) => i.id === ITEM.bankuOkra).category_id).toBe(1);
+  });
 
-    const bankuOkra = menu.body.find((i) => i.id === ITEM.bankuOkra);
-    const bankuTilapia = menu.body.find((i) => i.id === ITEM.bankuTilapia);
-    const jollof = menu.body.find((i) => i.id === ITEM.jollof);
+  it('deactivates a category without deleting its dishes', async () => {
+    const { agent } = await adminAgent();
 
-    // Dishes in the deleted category keep their row with a null category.
-    expect(bankuOkra.category_id).toBeNull();
-    expect(bankuTilapia.category_id).toBeNull();
-    // Dishes in other categories are unaffected.
-    expect(jollof.category_id).toBe(3);
+    const res = await agent.put('/api/menu/categories/1').send({ is_active: false });
+    expect(res.status).toBe(200);
+
+    const categories = await api().get('/api/menu/categories');
+    expect(categories.body.map((c) => c.slug)).not.toContain('banku');
+
+    const menu = await api().get('/api/menu/items');
+    expect(menu.body.find((i) => i.id === ITEM.bankuOkra)).toBeFalsy();
+
+    // A visitor cannot opt in to hidden categories with a query flag.
+    const bypass = await api().get('/api/menu/items').query({ include_inactive: true });
+    expect(bypass.body.find((i) => i.id === ITEM.bankuOkra)).toBeFalsy();
+
+    // The dish is not deleted: an administrator can still see it, and the
+    // order-history snapshots of past sales are untouched.
+    const adminMenu = await agent.get('/api/menu/items').query({ include_inactive: true });
+    expect(adminMenu.body.find((i) => i.id === ITEM.bankuOkra)).toBeTruthy();
+  });
+
+  it('refuses to rename an approved category outside the catalogue', async () => {
+    const { agent } = await adminAgent();
+
+    const res = await agent.put('/api/menu/categories/1').send({ name: 'Grills' });
+    expect(res.status).toBe(422);
   });
 });
