@@ -15,8 +15,9 @@ describe('the public menu', () => {
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBe(6);
+    expect(res.body.length).toBe(5);
     expect(res.body.map((i) => i.name)).toContain('Jollof Rice');
+    expect(res.body.map((i) => i.id)).not.toContain(ITEM.kokonteGroundnut);
   });
 
   it('serves the price the kitchen set', async () => {
@@ -91,6 +92,16 @@ describe('the public menu', () => {
     const { agent } = await adminAgent();
     const adminRes = await agent.get(`/api/menu/items/${ITEM.kokonteGroundnut}`);
     expect(adminRes.status).toBe(200);
+  });
+
+  it('lets an administrator see unavailable dishes in the list', async () => {
+    const { agent } = await adminAgent();
+
+    const adminList = await agent.get('/api/menu/items').query({ include_inactive: true });
+    expect(adminList.body.map((i) => i.id)).toContain(ITEM.kokonteGroundnut);
+
+    const bypass = await api().get('/api/menu/items').query({ include_unavailable: true });
+    expect(bypass.body.map((i) => i.id)).not.toContain(ITEM.kokonteGroundnut);
   });
 
   it('answers an unknown dish with a 404', async () => {
@@ -319,7 +330,7 @@ describe('administering the menu', () => {
     expect(res.status).toBe(422);
 
     const menu = await api().get('/api/menu/items');
-    expect(menu.body.length).toBe(6);
+    expect(menu.body.length).toBe(5);
     expect(menu.body.find((i) => i.id === ITEM.bankuOkra).category_id).toBe(1);
   });
 

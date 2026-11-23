@@ -110,6 +110,7 @@ export async function listItems({
   featured = null,
   available = null,
   includeInactiveCategories = false,
+  includeUnavailable = false,
   limit = 60,
   offset = 0,
 } = {}) {
@@ -150,6 +151,9 @@ export async function listItems({
   if (available !== null && available !== undefined) {
     params.push(Boolean(available));
     where.push(`mi.is_available = $${params.length}`);
+  } else if (!includeUnavailable) {
+    // Unpriced and unpublished drafts are never part of the public menu.
+    where.push('mi.is_available = true');
   }
 
   params.push(Math.min(Number(limit) || 60, 200));

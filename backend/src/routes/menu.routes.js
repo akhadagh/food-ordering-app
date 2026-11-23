@@ -21,6 +21,7 @@ const listSchema = z.object({
   is_featured: field.optionalBool(),
   is_available: field.optionalBool(),
   include_inactive: field.optionalBool(),
+  include_unavailable: field.optionalBool(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });
@@ -51,6 +52,7 @@ router.get('/items', optionalAuth, validate({ query: listSchema }), async (req, 
       featured: q.is_featured,
       available: q.is_available,
       includeInactiveCategories: wantsInactive(req),
+      includeUnavailable: wantsInactive(req),
       limit: q.limit,
       offset: q.offset,
     });

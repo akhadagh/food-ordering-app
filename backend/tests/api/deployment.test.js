@@ -249,10 +249,15 @@ describe('the function answers on the path it is served at', () => {
 
   it('drops the path parameter injected by the Vercel rewrite', () => {
     const middleware = apiPrefix();
-    const req = { url: '/api/menu/categories?path=categories&include_inactive=true' };
+    const req = {
+      url: '/api/menu/categories?path=categories&include_inactive=true',
+      query: { path: 'categories', include_inactive: 'true' },
+    };
 
     middleware(req, {}, () => {});
     expect(req.url).toBe('/api/menu/categories?include_inactive=true');
+    expect(req.query.path).toBeUndefined();
+    expect(req.query.include_inactive).toBe('true');
   });
 
   it('is idempotent', () => {

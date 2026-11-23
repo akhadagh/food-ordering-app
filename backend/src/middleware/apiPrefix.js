@@ -34,6 +34,10 @@ export const apiPrefix = (prefix = API_PREFIX) => (req, _res, next) => {
   if (!alreadyPrefixed) pathname = `${prefix}${pathname}`;
 
   req.url = `${pathname}${url.search}`;
+  // Some runtimes hand the app a pre-parsed query object. Clear the platform
+  // artefact there too, so strict route schemas never see it.
+  if (req.query && typeof req.query === 'object') delete req.query.path;
+  delete req._parsedUrl;
   next();
 };
 

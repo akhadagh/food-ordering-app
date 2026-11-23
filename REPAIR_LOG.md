@@ -431,3 +431,10 @@ validation error while `/api/health` worked. Vercel's `/api/:path*` rewrite
 keeps the real path but also injects the wildcard as a `path` query parameter,
 which the strict query schemas rejected. `apiPrefix.js` now removes that
 platform artefact before routing, with a regression test in `deployment.test.js`.
+
+### Post-deploy fix — drafts on the public menu
+
+The smoke test also showed unpriced, unpublished dishes in `/api/menu/items`.
+The public list now defaults to `is_available = true`; administrators retain
+visibility with `include_inactive`. A visitor cannot opt into drafts with
+`include_unavailable`.
